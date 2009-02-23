@@ -128,4 +128,6 @@ extern QEMUMachine musicpal_machine;
 /* tosa.c */
 extern QEMUMachine tosapda_machine;
 
+extern QEMUMachine mini2440_machine;
+
 #endif
