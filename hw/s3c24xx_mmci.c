@@ -16,7 +16,7 @@ struct s3c_mmci_state_s {
     qemu_irq irq;
     qemu_irq *dma;
 
-    struct sd_card_s *card;
+    SDState *card;
 
     int blklen;
     int blknum;
@@ -288,7 +288,7 @@ static uint32_t s3c_mmci_readw(void *opaque, target_phys_addr_t addr)
         return s->mask;
     default:
     bad_reg:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long int)addr);
         break;
     }
     return 0;
@@ -361,7 +361,7 @@ static void s3c_mmci_writew(void *opaque, target_phys_addr_t addr,
         break;
     default:
     bad_reg:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long int)addr);
     }
 }
 
@@ -384,7 +384,7 @@ static uint32_t s3c_mmci_readh(void *opaque, target_phys_addr_t addr)
         return ret;
     }
 
-    printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr - s->base);
+    printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long int)(addr - s->base));
     return 0;
 }
 
@@ -398,7 +398,7 @@ static void s3c_mmci_writeh(void *opaque, target_phys_addr_t addr,
         s->fifo[(s->fifostart + s->fifolen ++) & 63] = (value >> 8) & 0xff;
         s3c_mmci_fifo_run(s);
     } else
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr - s->base);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long int)(addr - s->base));
 }
 
 static uint32_t s3c_mmci_readb(void *opaque, target_phys_addr_t addr)
@@ -418,7 +418,7 @@ static uint32_t s3c_mmci_readb(void *opaque, target_phys_addr_t addr)
         return ret;
     }
 
-    printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr - s->base);
+    printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long int)(addr - s->base));
     return 0;
 }
 
@@ -431,7 +431,7 @@ static void s3c_mmci_writeb(void *opaque, target_phys_addr_t addr,
         s->fifo[(s->fifostart + s->fifolen ++) & 63] = value;
         s3c_mmci_fifo_run(s);
     } else
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr - s->base);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long int)(addr - s->base));
 }
 
 static CPUReadMemoryFunc *s3c_mmci_readfn[] = {
@@ -559,7 +559,7 @@ static int s3c_mmci_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct s3c_mmci_state_s *s3c_mmci_init(target_phys_addr_t base, uint16_t model,
-                struct sd_card_s *mmc, qemu_irq irq, qemu_irq *dma)
+		SDState *mmc, qemu_irq irq, qemu_irq *dma)
 {
     int iomemtype;
     struct s3c_mmci_state_s *s;
@@ -587,7 +587,8 @@ struct s3c_mmci_state_s *s3c_mmci_init(target_phys_addr_t base, uint16_t model,
         exit(-1);
     }
 
-    mmc->irq = qemu_allocate_irqs(s3c_mmci_cardirq, s, 1)[0];
+    sd_set_cb(mmc, 0, qemu_allocate_irqs(s3c_mmci_cardirq, s, 1)[0]);
+    //mmc->irq = qemu_allocate_irqs(s3c_mmci_cardirq, s, 1)[0];
 
     s3c_mmci_reset(s);
 

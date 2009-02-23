@@ -80,12 +80,16 @@ static void s3c_rtc_hz(void *opaque)
 
 static void s3c_rtc_update(struct s3c_rtc_state_s *s)
 {
+#if 1
+	qemu_get_timedate(&s->tm, 0);
+#else
     void *ret;
     time_t ti = s->sec;
     if (rtc_utc)
         ret = gmtime_r(&ti, &s->tm);
     else
         ret = localtime_r(&ti, &s->tm);
+#endif
 }
 
 static inline uint32_t to_bcd(int val)
@@ -168,7 +172,7 @@ static uint32_t s3c_rtc_read(void *opaque, target_phys_addr_t addr)
         s3c_rtc_update(s);
         return to_bcd(s->tm.tm_year % 100);
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -256,7 +260,7 @@ static void s3c_rtc_write(void *opaque, target_phys_addr_t addr,
         s->sec += diff * 60 * 60 * 24 * 365;
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 

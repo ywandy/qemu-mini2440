@@ -337,7 +337,7 @@ static uint32_t s3c_udc_read(void *opaque, target_phys_addr_t addr)
         return (s->ep1[ep].dma_size >> 16) & 0xf;
     bad_reg:
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -510,7 +510,7 @@ static void s3c_udc_write(void *opaque, target_phys_addr_t addr,
 
     bad_reg:
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -756,7 +756,8 @@ struct s3c_udc_state_s *s3c_udc_init(target_phys_addr_t base,
 
     register_savevm("s3c24xx_udc", 0, 0, s3c_udc_save, s3c_udc_load, s);
 
-    qemu_register_usb_gadget(&s->dev);
+    // TODO import usb gadget code from openmoko
+//    qemu_register_usb_gadget(&s->dev);
 
     return s;
 }

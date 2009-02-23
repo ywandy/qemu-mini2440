@@ -15,6 +15,7 @@
 #include "devices.h"
 #include "arm-misc.h"
 #include "i2c.h"
+#include "pxa.h"
 #include "sysemu.h"
 
 /* Interrupt controller */
@@ -233,7 +234,7 @@ static uint32_t s3c_pic_read(void *opaque, target_phys_addr_t addr)
     case S3C_INTSUBMSK:
         return s->intsubmsk;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -280,7 +281,7 @@ static void s3c_pic_write(void *opaque, target_phys_addr_t addr,
         s3c_pic_subupdate(s);
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -392,7 +393,7 @@ static uint32_t s3c_mc_read(void *opaque, target_phys_addr_t addr)
     case S3C_BWSCON ... S3C_MRSRB7:
         return s->mc_regs[addr >> 2];
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -409,7 +410,7 @@ static void s3c_mc_write(void *opaque, target_phys_addr_t addr,
         s->mc_regs[addr >> 2] = value;
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -493,7 +494,7 @@ static uint32_t s3c_nand_read(void *opaque, target_phys_addr_t addr)
             0xff;
 #undef ECC
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -534,7 +535,7 @@ static void s3c_nand_write(void *opaque, target_phys_addr_t addr,
             nand_setio(s->nand, ecc_digest(&s->nfecc, value & 0xff));
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -608,7 +609,7 @@ static uint32_t s3c_clkpwr_read(void *opaque, target_phys_addr_t addr)
     case S3C_LOCKTIME ... S3C_CLKDIVN:
         return s->clkpwr_regs[addr >> 2];
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -651,7 +652,7 @@ static void s3c_clkpwr_write(void *opaque, target_phys_addr_t addr,
         s->clkpwr_regs[addr >> 2] = value;
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -839,7 +840,7 @@ static uint32_t s3c_dma_read(void *opaque, target_phys_addr_t addr)
     case S3C_DMASKTRIG:
         return ch->mask;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -888,7 +889,7 @@ static void s3c_dma_write(void *opaque, target_phys_addr_t addr,
         }
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -1126,7 +1127,7 @@ static uint32_t s3c_timers_read(void *opaque, target_phys_addr_t addr)
     case S3C_TCNTO0:
         return s3c_timers_get(s, tm);
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -1182,7 +1183,7 @@ static void s3c_timers_write(void *opaque, target_phys_addr_t addr,
         s->countb[tm] = value & 0xffff;
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -1501,7 +1502,7 @@ static uint32_t s3c_uart_read(void *opaque, target_phys_addr_t addr)
     case S3C_UBRDIV:
         return s->brdiv;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -1539,11 +1540,13 @@ static void s3c_uart_write(void *opaque, target_phys_addr_t addr,
         s3c_uart_update(s);
         break;
     case S3C_UMCON:
+#ifdef CONFIG_S3C_MODEM		/* not handled, openmoko modem.c not imported */
         if ((s->mcontrol ^ value) & (1 << 4)) {
             afc = (value >> 4) & 1;
             for (i = 0; i < s->chr_num; i ++)
                 qemu_chr_ioctl(s->chr[i], CHR_IOCTL_MODEM_HANDSHAKE, &afc);
         }
+#endif
         s->mcontrol = value & 0x11;
         s3c_uart_update(s);
         break;
@@ -1560,7 +1563,7 @@ static void s3c_uart_write(void *opaque, target_phys_addr_t addr,
         s3c_uart_update(s);
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -1748,7 +1751,7 @@ static uint32_t s3c_adc_read(void *opaque, target_phys_addr_t addr)
     case S3C_ADCDAT1:
         return ((!s->down) << 15) | s->ydata;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -1779,7 +1782,7 @@ static void s3c_adc_write(void *opaque, target_phys_addr_t addr,
         s->delay = value & 0xffff;
 
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -2010,7 +2013,7 @@ static uint32_t s3c_i2c_read(void *opaque, target_phys_addr_t addr)
     case S3C_IICDS:
         return s->data;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -2047,7 +2050,7 @@ static void s3c_i2c_write(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -2074,7 +2077,7 @@ static void s3c_i2c_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->busy);
     qemu_put_be32(f, s->newstart);
 
-    i2c_bus_save(f, s->bus);
+//    i2c_bus_save(f, s->bus);
     i2c_slave_save(f, &s->slave);
 }
 
@@ -2089,7 +2092,7 @@ static int s3c_i2c_load(QEMUFile *f, void *opaque, int version_id)
     s->busy = qemu_get_be32(f);
     s->newstart = qemu_get_be32(f);
 
-    i2c_bus_load(f, s->bus);
+//    i2c_bus_load(f, s->bus);
     i2c_slave_load(f, &s->slave);
     return 0;
 }
@@ -2221,7 +2224,7 @@ static uint32_t s3c_spi_read(void *opaque, target_phys_addr_t addr)
         return s->chan[ch].rxbuf;
 
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -2261,7 +2264,7 @@ static void s3c_spi_write(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -2503,7 +2506,7 @@ static uint32_t s3c_i2s_read(void *opaque, target_phys_addr_t addr)
                 return s->buffer;
         }
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -2543,7 +2546,7 @@ static void s3c_i2s_write(void *opaque, target_phys_addr_t addr,
         }
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -2697,7 +2700,7 @@ static uint32_t s3c_wdt_read(void *opaque, target_phys_addr_t addr)
         s3c_wdt_stop(s);
         return s->count;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -2723,7 +2726,7 @@ static void s3c_wdt_write(void *opaque, target_phys_addr_t addr,
         s3c_wdt_start(s);
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -2809,7 +2812,7 @@ static struct {
 };
 
 /* General CPU reset */
-void s3c2410_reset(void *opaque)
+static void s3c2410_reset(void *opaque)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
     int i;
@@ -2836,14 +2839,14 @@ void s3c2410_reset(void *opaque)
 
 /* Initialise an S3C2410A microprocessor.  */
 struct s3c_state_s *s3c2410_init(unsigned int sdram_size, DisplayState *ds,
-                struct sd_card_s *mmc)
+		SDState *mmc)
 {
     struct s3c_state_s *s;
     int iomemtype, i;
     s = (struct s3c_state_s *) qemu_mallocz(sizeof(struct s3c_state_s));
 
     s->env = cpu_init("arm920t");
-    register_savevm("cpu", 0, ARM_CPU_SAVE_VERSION,
+    register_savevm("s3c2410", 0, 0,
                     cpu_save, cpu_load, s->env);
 
     cpu_register_physical_memory(S3C_RAM_BASE, sdram_size,
@@ -2915,7 +2918,7 @@ struct s3c_state_s *s3c2410_init(unsigned int sdram_size, DisplayState *ds,
                     s->irq[S3C_PIC_SDI], s->drq);
 
     if (usb_enabled) {
-        usb_ohci_init_memio(0x49000000, 3, -1, s->irq[S3C_PIC_USBH]);
+        usb_ohci_init_pxa(0x49000000, 3, -1, s->irq[S3C_PIC_USBH]);
     }
 
     qemu_register_reset(s3c2410_reset, s);

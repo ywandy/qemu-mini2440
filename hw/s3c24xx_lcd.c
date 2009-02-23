@@ -266,7 +266,7 @@ static inline void s3c_lcd_resize(struct s3c_lcd_state_s *s)
     if (s->width != new_width || s->height != new_height) {
         s->width = new_width;
         s->height = new_height;
-        dpy_resize(s->ds, s->width, s->height);
+   //     dpy_resize(s->ds, s->width, s->height);
         s->invalidate = 1;
     }
 }
@@ -304,7 +304,7 @@ uint32_t s3c_rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
 static inline uint32_t s3c_rgb(struct s3c_lcd_state_s *s,
                 unsigned int r, unsigned int g, unsigned b)
 {
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 8:
         return s3c_rgb_to_pixel32(r << 2, g << 2, b << 2);
     case 15:
@@ -413,7 +413,7 @@ static void s3c_update_display(void *opaque)
     src = s->fb;
     src_width = s->src_width;
 
-    dest = s->ds->data;
+    dest = ds_get_data(s->ds);
     dest_width = s->width * s->dest_width;
 
     addr = (ram_addr_t) (s->fb - (void *) phys_ram_base);
@@ -551,7 +551,7 @@ struct s3c_lcd_state_s *s3c_lcd_init(target_phys_addr_t base, DisplayState *ds,
 
     register_savevm("s3c24xx_lcd", 0, 0, s3c_lcd_save, s3c_lcd_load, s);
 
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
         s->dest_width = 0;
         break;

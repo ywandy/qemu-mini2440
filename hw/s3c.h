@@ -158,7 +158,7 @@ void s3c_lcd_reset(struct s3c_lcd_state_s *s);
 /* s3c24xx_mmci.c */
 struct s3c_mmci_state_s;
 struct s3c_mmci_state_s *s3c_mmci_init(target_phys_addr_t base, uint16_t model,
-                struct sd_card_s *mmc, qemu_irq irq, qemu_irq *dma);
+		SDState *mmc, qemu_irq irq, qemu_irq *dma);
 void s3c_mmci_reset(struct s3c_mmci_state_s *s);
 
 /* s3c24xx_rtc.c */
@@ -220,7 +220,7 @@ struct s3c_state_s {
 
 /* s3c2410.c */
 struct s3c_state_s *s3c2410_init(unsigned int sdram_size, DisplayState *ds,
-                struct sd_card_s *mmc);
+		SDState *mmc);
 void s3c_nand_register(struct s3c_state_s *s, struct nand_flash_s *chip);
 void s3c_nand_setwp(struct s3c_state_s *s, int wp);
 
