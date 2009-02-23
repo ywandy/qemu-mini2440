@@ -175,7 +175,6 @@ static uint32_t s3c_gpio_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_gpio_state_s *s = (struct s3c_gpio_state_s *) opaque;
     int bank = 0;
-    addr -= s->base;
     if ((addr >> 4) < S3C_IO_BANKS) {
         bank = addr >> 4;
         addr &= 0xf;
@@ -230,7 +229,6 @@ static void s3c_gpio_write(void *opaque, target_phys_addr_t addr,
     struct s3c_gpio_state_s *s = (struct s3c_gpio_state_s *) opaque;
     uint32_t diff;
     int ln, bank = 0;
-    addr -= s->base;
     if ((addr >> 4) < S3C_IO_BANKS) {
         bank = addr >> 4;
         addr &= 0xf;

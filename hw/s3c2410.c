@@ -214,7 +214,6 @@ static void s3c_pic_reset(struct s3c_pic_state_s *s)
 static uint32_t s3c_pic_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_pic_state_s *s = (struct s3c_pic_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_SRCPND:
@@ -244,7 +243,6 @@ static void s3c_pic_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_pic_state_s *s = (struct s3c_pic_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_SRCPND:
@@ -387,7 +385,6 @@ static void s3c_mc_reset(struct s3c_state_s *s)
 static uint32_t s3c_mc_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    addr -= s->mc_base;
 
     switch (addr >> 2) {
     case S3C_BWSCON ... S3C_MRSRB7:
@@ -403,7 +400,6 @@ static void s3c_mc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    addr -= s->mc_base;
 
     switch (addr >> 2) {
     case S3C_BWSCON ... S3C_MRSRB7:
@@ -464,7 +460,6 @@ static void s3c_clkpwr_reset(struct s3c_state_s *s)
 static uint32_t s3c_clkpwr_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    addr -= s->clkpwr_base;
 
     switch (addr) {
     case S3C_LOCKTIME ... S3C_CLKDIVN:
@@ -480,7 +475,6 @@ static void s3c_clkpwr_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    addr -= s->clkpwr_base;
 
     switch (addr) {
     case S3C_LOCKTIME:
@@ -675,7 +669,7 @@ static uint32_t s3c_dma_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_dma_state_s *s = (struct s3c_dma_state_s *) opaque;
     struct s3c_dma_ch_state_s *ch = 0;
-    addr -= s->base;
+
     if (addr >= 0 && addr <= (S3C_DMA_CH_N << 6)) {
         ch = &s->ch[addr >> 6];
         addr &= 0x3f;
@@ -712,7 +706,7 @@ static void s3c_dma_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_dma_state_s *s = (struct s3c_dma_state_s *) opaque;
     struct s3c_dma_ch_state_s *ch = 0;
-    addr -= s->base;
+
     if (addr >= 0 && addr <= (S3C_DMA_CH_N << 6)) {
         ch = &s->ch[addr >> 6];
         addr &= 0x3f;
@@ -961,7 +955,6 @@ static uint32_t s3c_timers_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_timers_state_s *s = (struct s3c_timers_state_s *) opaque;
     int tm = 0;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_TCFG0:
@@ -999,7 +992,7 @@ static void s3c_timers_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_timers_state_s *s = (struct s3c_timers_state_s *) opaque;
     int tm = 0;
-    addr -= s->base;
+  //    s->base;
 
     switch (addr) {
     case S3C_TCFG0:
@@ -1323,7 +1316,6 @@ static uint32_t s3c_uart_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_uart_state_s *s = (struct s3c_uart_state_s *) opaque;
     uint8_t ret;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_ULCON:
@@ -1375,7 +1367,6 @@ static void s3c_uart_write(void *opaque, target_phys_addr_t addr,
     struct s3c_uart_state_s *s = (struct s3c_uart_state_s *) opaque;
     uint8_t ch;
     int i, afc;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_ULCON:
@@ -1596,7 +1587,6 @@ static void s3c_adc_event(void *opaque,
 static uint32_t s3c_adc_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_adc_state_s *s = (struct s3c_adc_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_ADCCON:
@@ -1622,7 +1612,6 @@ static void s3c_adc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_adc_state_s *s = (struct s3c_adc_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_ADCCON:
@@ -1862,7 +1851,6 @@ static void s3c_master_work(void *opaque)
 static uint32_t s3c_i2c_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_i2c_state_s *s = (struct s3c_i2c_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_IICCON:
@@ -1884,7 +1872,6 @@ static void s3c_i2c_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_i2c_state_s *s = (struct s3c_i2c_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_IICCON:
@@ -2053,7 +2040,7 @@ static uint32_t s3c_spi_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_spi_state_s *s = (struct s3c_spi_state_s *) opaque;
     int ch;
-    addr -= s->base;
+
     ch = addr >> 5;
 
     switch (addr) {
@@ -2096,7 +2083,7 @@ static void s3c_spi_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_spi_state_s *s = (struct s3c_spi_state_s *) opaque;
     int ch;
-    addr -= s->base;
+
     ch = addr >> 5;
 
     switch (addr) {
@@ -2342,7 +2329,6 @@ static uint32_t s3c_i2s_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_i2s_state_s *s = (struct s3c_i2s_state_s *) opaque;
     uint32_t ret;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_IISCON:
@@ -2377,7 +2363,6 @@ static void s3c_i2s_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_i2s_state_s *s = (struct s3c_i2s_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_IISCON:
@@ -2550,7 +2535,6 @@ static void s3c_wdt_timeout(void *opaque)
 static uint32_t s3c_wdt_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_wdt_state_s *s = (struct s3c_wdt_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_WTCON:
@@ -2571,7 +2555,6 @@ static void s3c_wdt_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_wdt_state_s *s = (struct s3c_wdt_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_WTCON:

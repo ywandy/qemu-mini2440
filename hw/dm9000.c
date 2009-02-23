@@ -612,8 +612,8 @@ void dm9000_init(NICInfo *nd, target_phys_addr_t base_addr,
     iomemtype = cpu_register_io_memory(0, dm9000_readfn,
                                        dm9000_writefn, state);
     cpu_register_physical_memory(base_addr, MAX(addr_offset, data_offset) + 4, iomemtype);
-    state->addr = base_addr + addr_offset;
-    state->data = base_addr + data_offset;
+    state->addr = /*base_addr + */addr_offset;
+    state->data = /*base_addr + */data_offset;
     state->irq = irq;
     memcpy(state->macaddr, nd->macaddr, 6);
 

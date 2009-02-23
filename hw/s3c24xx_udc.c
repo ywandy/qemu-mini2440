@@ -219,9 +219,9 @@ static uint32_t s3c_udc_read(void *opaque, target_phys_addr_t addr)
     struct s3c_udc_state_s *s = (struct s3c_udc_state_s *) opaque;
     int ep = S3C_EPS;
     uint8_t ret = 0;
-    addr -= s->base;
+
     while (addr < s3c_udc_ep_reg[-- ep]);
-    addr -= s3c_udc_ep_reg[ep];
+   	addr -= s3c_udc_ep_reg[ep];
 
     switch (addr) {
     case S3C_FUNC_ADDR:
@@ -348,7 +348,7 @@ static void s3c_udc_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_udc_state_s *s = (struct s3c_udc_state_s *) opaque;
     int ep = S3C_EPS;
-    addr -= s->base;
+
     while (addr < s3c_udc_ep_reg[-- ep]);
     addr -= s3c_udc_ep_reg[ep];
 

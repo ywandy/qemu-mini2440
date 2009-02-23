@@ -123,7 +123,6 @@ static inline int from_bcd(uint32_t val)
 static uint32_t s3c_rtc_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_rtc_state_s *s = (struct s3c_rtc_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_RTC_CON:
@@ -183,7 +182,6 @@ static void s3c_rtc_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_rtc_state_s *s = (struct s3c_rtc_state_s *) opaque;
     int diff;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_RTC_CON:

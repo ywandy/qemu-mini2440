@@ -106,7 +106,6 @@ void s3c_lcd_reset(struct s3c_lcd_state_s *s)
 static uint32_t s3c_lcd_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_lcd_state_s *s = (struct s3c_lcd_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_LCDCON1:
@@ -157,7 +156,6 @@ static void s3c_lcd_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_lcd_state_s *s = (struct s3c_lcd_state_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case S3C_LCDCON1:

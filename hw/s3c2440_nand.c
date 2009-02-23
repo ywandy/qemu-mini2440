@@ -47,7 +47,6 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
     int rb, shr = 0;
     if (!s->nand)
         return 0;
-    addr -= s->nand_base;
 
     switch (addr) {
     case S3C_NFCONF:
@@ -88,7 +87,6 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
     struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     if (!s->nand)
         return;
-    addr -= s->nand_base;
 
     switch (addr) {
     case S3C_NFCONF:

@@ -217,7 +217,6 @@ static uint32_t s3c_mmci_readw(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_mmci_state_s *s = (struct s3c_mmci_state_s *) opaque;
     uint32_t ret;
-    addr -= s->base;
     if (addr > S3C_SDIMAX)
         goto bad_reg;
     addr = s->map[addr];
@@ -298,7 +297,6 @@ static void s3c_mmci_writew(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct s3c_mmci_state_s *s = (struct s3c_mmci_state_s *) opaque;
-    addr -= s->base;
     if (addr > S3C_SDIMAX)
         goto bad_reg;
     addr = s->map[addr];
