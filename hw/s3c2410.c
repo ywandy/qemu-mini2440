@@ -2710,6 +2710,10 @@ struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, Displ
     s->cpu_id = cpu_id;
 
     s->env = cpu_init("arm920t");
+    if (!s->env) {
+        fprintf(stderr, "Unable to initialize ARM920T\n");
+        exit(2);
+    }
     register_savevm("s3c24xx", 0, 0,
                     cpu_save, cpu_load, s->env);
 

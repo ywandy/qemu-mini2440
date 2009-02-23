@@ -37,6 +37,11 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
 {
     env->cp15.c0_cpuid = id;
     switch (id) {
+    case ARM_CPUID_ARM920T:
+        set_feature(env, ARM_FEATURE_S3C);
+        env->cp15.c0_cachetype = 0xd172172;
+        env->cp15.c1_sys = 0x00000078;
+        break;
     case ARM_CPUID_ARM926:
         set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
@@ -276,6 +281,7 @@ struct arm_cpu_t {
 };
 
 static const struct arm_cpu_t arm_cpu_names[] = {
+    { ARM_CPUID_ARM920T, "arm920t"},
     { ARM_CPUID_ARM926, "arm926"},
     { ARM_CPUID_ARM946, "arm946"},
     { ARM_CPUID_ARM1026, "arm1026"},
@@ -1529,6 +1535,8 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
     case 12: /* Reserved.  */
         goto bad_reg;
     case 13: /* Process ID.  */
+        if (arm_feature(env, ARM_FEATURE_S3C))
+            op2 = 0;
         switch (op2) {
         case 0:
             /* Unlike real hardware the qemu TLB uses virtual addresses,
@@ -1627,6 +1635,8 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                 case 1: /* Cache Type.  */
 		    return env->cp15.c0_cachetype;
                 case 2: /* TCM status.  */
+                    if (arm_feature(env, ARM_FEATURE_S3C))
+                        return env->cp15.c0_cpuid;
                     return 0;
                 case 3: /* TLB type register.  */
                     return 0; /* No lockable TLB entries.  */
