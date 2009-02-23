@@ -11,7 +11,7 @@
 #include "s3c.h"
 #include "hw.h"
 
-struct s3c2410_nand_s {
+struct s3c2440_nand_s {
 	struct s3c_nand_driver_s driver;
 
     /* NAND Flash controller */
@@ -32,18 +32,18 @@ struct s3c2410_nand_s {
 #define S3C_NFSTAT	0x10	/* NAND Flash Operation Status register */
 #define S3C_NFECC	0x14	/* NAND Flash ECC register */
 
-static void s3c2410_nand_reset(void * opaque)
+static void s3c2440_nand_reset(void * opaque)
 {
-	struct s3c2410_nand_s *s = (struct s3c2410_nand_s *)opaque;
+	struct s3c2440_nand_s *s = (struct s3c2440_nand_s *)opaque;
     s->nfconf = 0;
     s->nfcmd = 0;
     s->nfaddr = 0;
     ecc_reset(&s->nfecc);
 }
 
-static uint32_t s3c2410_nand_read(void *opaque, target_phys_addr_t addr)
+static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
 {
-    struct s3c2410_nand_s *s = (struct s3c2410_nand_s *) opaque;
+    struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     int rb, shr = 0;
     if (!s->nand)
         return 0;
@@ -82,10 +82,10 @@ static uint32_t s3c2410_nand_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void s3c2410_nand_write(void *opaque, target_phys_addr_t addr,
+static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct s3c2410_nand_s *s = (struct s3c2410_nand_s *) opaque;
+    struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     if (!s->nand)
         return;
     addr -= s->nand_base;
@@ -121,33 +121,33 @@ static void s3c2410_nand_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void s3c2410_nand_register(void * opaque, struct nand_flash_s *chip)
+static void s3c2440_nand_register(void * opaque, struct nand_flash_s *chip)
 {
-    struct s3c2410_nand_s *s = (struct s3c2410_nand_s *) opaque;
+    struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     s->nand = chip;
 }
 
-static void s3c2410_nand_setwp(void * opaque, int wp)
+static void s3c2440_nand_setwp(void * opaque, int wp)
 {
-    struct s3c2410_nand_s *s = (struct s3c2410_nand_s *) opaque;
+    struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     s->nfwp = wp;
 }
 
-static CPUReadMemoryFunc *s3c2410_nand_readfn[] = {
-    s3c2410_nand_read,
-    s3c2410_nand_read,
-    s3c2410_nand_read,
+static CPUReadMemoryFunc *s3c2440_nand_readfn[] = {
+    s3c2440_nand_read,
+    s3c2440_nand_read,
+    s3c2440_nand_read,
 };
 
-static CPUWriteMemoryFunc *s3c2410_nand_writefn[] = {
-    s3c2410_nand_write,
-    s3c2410_nand_write,
-    s3c2410_nand_write,
+static CPUWriteMemoryFunc *s3c2440_nand_writefn[] = {
+    s3c2440_nand_write,
+    s3c2440_nand_write,
+    s3c2440_nand_write,
 };
 
-static void s3c2410_nand_save(QEMUFile *f, void *opaque)
+static void s3c2440_nand_save(QEMUFile *f, void *opaque)
 {
-    struct s3c2410_nand_s *s = (struct s3c2410_nand_s *) opaque;
+    struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     qemu_put_be16s(f, &s->nfconf);
     qemu_put_8s(f, &s->nfcmd);
     qemu_put_8s(f, &s->nfaddr);
@@ -155,9 +155,9 @@ static void s3c2410_nand_save(QEMUFile *f, void *opaque)
     ecc_put(f, &s->nfecc);
 }
 
-static int s3c2410_nand_load(QEMUFile *f, void *opaque, int version_id)
+static int s3c2440_nand_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct s3c2410_nand_s *s = (struct s3c2410_nand_s *) opaque;
+    struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     qemu_get_be16s(f, &s->nfconf);
     qemu_get_8s(f, &s->nfcmd);
     qemu_get_8s(f, &s->nfaddr);
@@ -166,22 +166,22 @@ static int s3c2410_nand_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static const struct s3c_nand_driver_s s3c2410_nand_driver = {
-	.reset = s3c2410_nand_reset,
-	.setwp = s3c2410_nand_setwp,
-	.reg = s3c2410_nand_register
+static const struct s3c_nand_driver_s s3c2440_nand_driver = {
+	.reset = s3c2440_nand_reset,
+	.setwp = s3c2440_nand_setwp,
+	.reg = s3c2440_nand_register
 };
 
-struct s3c_nand_driver_s * s3c2410_nand_init(void)
+struct s3c_nand_driver_s * s3c2440_nand_init(void)
 {
 	int iomemtype;
-	struct s3c2410_nand_s *nand = (struct s3c2410_nand_s *)
-	            qemu_mallocz(sizeof(struct s3c2410_nand_s));
-	nand->driver = s3c2410_nand_driver;
+	struct s3c2440_nand_s *nand = (struct s3c2440_nand_s *)
+	            qemu_mallocz(sizeof(struct s3c2440_nand_s));
+	nand->driver = s3c2440_nand_driver;
 	nand->nand_base = 0x4e000000;
 	nand->driver.reset(nand);
-	iomemtype = cpu_register_io_memory(0, s3c2410_nand_readfn, s3c2410_nand_writefn, nand);
+	iomemtype = cpu_register_io_memory(0, s3c2440_nand_readfn, s3c2440_nand_writefn, nand);
 	cpu_register_physical_memory(nand->nand_base, 0xffffff, iomemtype);
-	register_savevm("s3c2410_nand", 0, 0, s3c2410_nand_save, s3c2410_nand_load, nand);
+	register_savevm("s3c2440_nand", 0, 0, s3c2440_nand_save, s3c2440_nand_load, nand);
 	return &nand->driver;
 }

@@ -182,7 +182,9 @@ struct s3c_nand_driver_s {
 };
 
 /* s3c2410_nand.c */
-struct s3c_nand_driver_s * s3c2410_nand_init();
+struct s3c_nand_driver_s * s3c2410_nand_init(void);
+/* s3c2440_nand.c */
+struct s3c_nand_driver_s * s3c2440_nand_init(void);
 
 /* s3c2410.c */
 struct s3c_spi_state_s;

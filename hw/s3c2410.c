@@ -2742,7 +2742,10 @@ struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, Displ
 
     s->lcd = s3c_lcd_init(0x4d000000, ds, s->irq[S3C_PIC_LCD]);
 
-    s->nand = s3c2410_nand_init(s);
+    if (s->cpu_id == S3C_CPU_2440)
+    	s->nand = s3c2440_nand_init();
+    else
+    	s->nand = s3c2410_nand_init();
 
     for (i = 0; s3c2410_uart[i].base; i ++) {
         s->uart[i] = s3c_uart_init(s3c2410_uart[i].base,
