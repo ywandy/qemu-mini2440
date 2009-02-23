@@ -222,7 +222,7 @@ struct s3c_state_s {
 
     /* Clock & power management */
     target_phys_addr_t clkpwr_base;
-    uint32_t clkpwr_regs[6];
+    uint32_t clkpwr_regs[6 + 1];	// 6 2410. 1 2440
 };
 
 /* s3c2410.c */

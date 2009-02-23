@@ -347,6 +347,9 @@ static void s3c_mmci_writew(void *opaque, target_phys_addr_t addr,
     case S3C_SDIDSTA:
         s->dstatus &= ~(value & 0x3f8);
         break;
+    case S3C_SDIFSTA:
+    	/* write is tolerated on the s3c2440 */
+    	break;
     case S3C_SDIDAT:
         s->fifo[(s->fifostart + s->fifolen ++) & 63] = (value >> 0) & 0xff;
         s->fifo[(s->fifostart + s->fifolen ++) & 63] = (value >> 8) & 0xff;

@@ -447,6 +447,8 @@ static int s3c_mc_load(QEMUFile *f, void *opaque, int version_id)
 #define S3C_CLKSLOW	0x10	/* Slow Clock Control register */
 #define S3C_CLKDIVN	0x14	/* Clock Divider Control register */
 
+#define S3C2440_CAMDIVN	0x18	/* Camera Clock Divider register */
+
 static void s3c_clkpwr_reset(struct s3c_state_s *s)
 {
     s->clkpwr_regs[S3C_LOCKTIME >> 2] = 0x00ffffff;
@@ -455,6 +457,7 @@ static void s3c_clkpwr_reset(struct s3c_state_s *s)
     s->clkpwr_regs[S3C_CLKCON >> 2] = 0x0007fff0;
     s->clkpwr_regs[S3C_CLKSLOW >> 2] = 0x00000004;
     s->clkpwr_regs[S3C_CLKDIVN >> 2] = 0x00000000;
+    s->clkpwr_regs[S3C2440_CAMDIVN >> 2] = 0x00000000;
 }
 
 static uint32_t s3c_clkpwr_read(void *opaque, target_phys_addr_t addr)
@@ -464,6 +467,9 @@ static uint32_t s3c_clkpwr_read(void *opaque, target_phys_addr_t addr)
     switch (addr) {
     case S3C_LOCKTIME ... S3C_CLKDIVN:
         return s->clkpwr_regs[addr >> 2];
+    case S3C2440_CAMDIVN:
+    	if (s->cpu_id == S3C_CPU_2440)
+    		return s->clkpwr_regs[addr >> 2];
     default:
         printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
@@ -506,8 +512,13 @@ static void s3c_clkpwr_write(void *opaque, target_phys_addr_t addr,
                             (value & (1 << 4)) ? "on" : "off");
         s->clkpwr_regs[addr >> 2] = value;
         break;
+    case S3C2440_CAMDIVN:
+    	if (s->cpu_id == S3C_CPU_2440) {
+    		s->clkpwr_regs[addr >> 2] = value;
+    		break;
+    	}
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
+        printf("%s: Bad register 0x%lx (cpu %08x)\n", __FUNCTION__, /*(unsigned long)*/addr, s->cpu_id);
     }
 }
 
@@ -1340,6 +1351,8 @@ static uint32_t s3c_uart_read(void *opaque, target_phys_addr_t addr)
     case S3C_UMSTAT:
         s3c_uart_update(s);
         return 0x11;
+    case S3C_UTXH:	/* why this is called by u-boot is not clear */
+    	return 0;
     case S3C_URXH:
         s3c_uart_update(s);
         if (s->rxlen) {

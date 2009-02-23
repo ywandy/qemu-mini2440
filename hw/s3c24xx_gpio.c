@@ -10,6 +10,8 @@
 #include "s3c.h"
 #include "hw.h"
 
+/* S3C2410 : A B C D E F G H  = 8 
+ * S3C2440 : J = 1 */
 #define S3C_IO_BANKS	8
 
 struct s3c_gpio_state_s {	/* Modelled as an interrupt controller */
