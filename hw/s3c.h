@@ -13,6 +13,9 @@
 # include "flash.h"
 # include "sd.h"
 
+#define S3C_CPU_2410	0x32410002
+#define S3C_CPU_2440	0x32440001
+
 /* Interrupt numbers */
 # define S3C_PIC_EINT0	0
 # define S3C_PIC_EINT1	1
@@ -143,7 +146,7 @@ struct s3c_wdt_state_s *s3c_wdt_init(target_phys_addr_t base, qemu_irq irq);
 
 /* s3c24xx_gpio.c */
 struct s3c_gpio_state_s;
-struct s3c_gpio_state_s *s3c_gpio_init(target_phys_addr_t base, qemu_irq *pic);
+struct s3c_gpio_state_s *s3c_gpio_init(target_phys_addr_t base, qemu_irq *pic, uint32_t cpu_id);
 qemu_irq *s3c_gpio_in_get(struct s3c_gpio_state_s *s);
 void s3c_gpio_out_set(struct s3c_gpio_state_s *s, int line, qemu_irq handler);
 void s3c_gpio_setpwrstat(struct s3c_gpio_state_s *s, int stat);
@@ -183,6 +186,7 @@ void s3c_spi_attach(struct s3c_spi_state_s *s, int ch,
 
 struct s3c_state_s {
     CPUState *env;
+    uint32_t cpu_id;
     qemu_irq *irq;
     qemu_irq *drq;
     struct s3c_pic_state_s *pic;
@@ -219,7 +223,7 @@ struct s3c_state_s {
 };
 
 /* s3c2410.c */
-struct s3c_state_s *s3c2410_init(unsigned int sdram_size, DisplayState *ds,
+struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, DisplayState *ds,
 		SDState *mmc);
 void s3c_nand_register(struct s3c_state_s *s, struct nand_flash_s *chip);
 void s3c_nand_setwp(struct s3c_state_s *s, int wp);

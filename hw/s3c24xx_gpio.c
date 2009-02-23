@@ -13,6 +13,7 @@
 #define S3C_IO_BANKS	8
 
 struct s3c_gpio_state_s {	/* Modelled as an interrupt controller */
+	uint32_t cpu_id;
     target_phys_addr_t base;
     qemu_irq *pic;
     qemu_irq *in;
@@ -184,7 +185,7 @@ static uint32_t s3c_gpio_read(void *opaque, target_phys_addr_t addr)
     case S3C_GSTATUS0:
         return 0x0;
     case S3C_GSTATUS1:
-        return 0x32410002;
+        return s->cpu_id;
     case S3C_GSTATUS2:
         return s->pwrstat;
     case S3C_GSTATUS3:
@@ -217,7 +218,7 @@ static uint32_t s3c_gpio_read(void *opaque, target_phys_addr_t addr)
     case S3C_GPUP:
         return s->bank[bank].up;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -299,7 +300,7 @@ static void s3c_gpio_write(void *opaque, target_phys_addr_t addr,
         s->bank[bank].up = value;
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
@@ -367,12 +368,13 @@ static int s3c_gpio_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct s3c_gpio_state_s *s3c_gpio_init(target_phys_addr_t base, qemu_irq *pic)
+struct s3c_gpio_state_s *s3c_gpio_init(target_phys_addr_t base, qemu_irq *pic, uint32_t cpu_id)
 {
     int iomemtype;
     struct s3c_gpio_state_s *s = (struct s3c_gpio_state_s *)
             qemu_mallocz(sizeof(struct s3c_gpio_state_s));
 
+    s->cpu_id = cpu_id;
     s->base = base;
     s->pic = pic;
     s->in = qemu_allocate_irqs(s3c_gpio_set, s, S3C_GP_MAX);

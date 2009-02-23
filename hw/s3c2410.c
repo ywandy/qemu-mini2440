@@ -2838,15 +2838,17 @@ static void s3c2410_reset(void *opaque)
 }
 
 /* Initialise an S3C2410A microprocessor.  */
-struct s3c_state_s *s3c2410_init(unsigned int sdram_size, DisplayState *ds,
+struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, DisplayState *ds,
 		SDState *mmc)
 {
     struct s3c_state_s *s;
     int iomemtype, i;
     s = (struct s3c_state_s *) qemu_mallocz(sizeof(struct s3c_state_s));
 
+    s->cpu_id = cpu_id;
+
     s->env = cpu_init("arm920t");
-    register_savevm("s3c2410", 0, 0,
+    register_savevm("s3c24xx", 0, 0,
                     cpu_save, cpu_load, s->env);
 
     cpu_register_physical_memory(S3C_RAM_BASE, sdram_size,
@@ -2903,7 +2905,7 @@ struct s3c_state_s *s3c2410_init(unsigned int sdram_size, DisplayState *ds,
 
     s->i2s = s3c_i2s_init(0x55000000, s->drq);
 
-    s->io = s3c_gpio_init(0x56000000, s->irq);
+    s->io = s3c_gpio_init(0x56000000, s->irq, s->cpu_id);
 
     s->rtc = s3c_rtc_init(0x57000000, s->irq[S3C_PIC_RTC]);
 
