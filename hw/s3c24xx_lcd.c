@@ -147,7 +147,7 @@ static uint32_t s3c_lcd_read(void *opaque, target_phys_addr_t addr)
         /* XXX assuming 16bit access */
         return s->raw_pal[(addr - S3C_PALETTE) >> 1];
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
     }
     return 0;
@@ -242,7 +242,7 @@ static void s3c_lcd_write(void *opaque, target_phys_addr_t addr,
         s->raw_pal[(addr - S3C_PALETTE) >> 1] = value;
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, addr);
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
 }
 
