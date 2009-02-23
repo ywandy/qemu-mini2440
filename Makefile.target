@@ -672,6 +672,9 @@ OBJS+= nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 OBJS+= tsc2005.o bt-hci-csr.o
 OBJS+= mst_fpga.o mainstone.o
 OBJS+= musicpal.o pflash_cfi02.o
+OBJS+= s3c2410.o s3c24xx_gpio.o s3c24xx_lcd.o s3c24xx_mmci.o s3c24xx_rtc.o s3c24xx_udc.o s3c2410_nand.o s3c2440_nand.o  
+OBJS+= dm9000.o
+OBJS+= mini2440.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
