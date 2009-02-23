@@ -139,7 +139,7 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size, DisplayState 
 //    		s3c_gpio_out_set(s->cpu->io, GTA01_GPIO_DM9000,
 //	                    *qemu_allocate_irqs(mini2440_bl_switch, s, 1));
 
-			dm9000_init(nd, 0x20000300, 0x00, 0x04, s3c_gpio_in_get(s->cpu->io)[7]);
+			dm9000_init(nd, 0x20000000, 0x300, 0x304, s3c_gpio_in_get(s->cpu->io)[7]);
 		}
 	}
 
@@ -176,7 +176,7 @@ static void mini2440_init(ram_addr_t ram_size, int vga_ram_size,
     neo = mini2440_init_common(ram_size, ds,
                     kernel_filename, cpu_model, sd, MACH_MINI2440);
 
-    neo->cpu->nand->reg(neo->cpu->nand, nand_init(NAND_MFR_SAMSUNG, 0xa2));
+    neo->cpu->nand->reg(neo->cpu->nand, nand_init(NAND_MFR_SAMSUNG, 0x36));
 
 
 }

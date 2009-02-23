@@ -536,11 +536,11 @@ struct s3c_lcd_state_s *s3c_lcd_init(target_phys_addr_t base, DisplayState *ds,
 
     s->base = base;
     s->irq = irq;
-    s->ds = ds;
+    //s->ds = ds;
 
     s3c_lcd_reset(s);
 
-    graphic_console_init(ds, s3c_update_display,
+    s->ds = graphic_console_init(ds, s3c_update_display,
                     s3c_invalidate_display, s3c_screen_dump, s);
 
     iomemtype = cpu_register_io_memory(0, s3c_lcd_readfn,
