@@ -17,25 +17,35 @@ struct s3c2440_nand_s {
     /* NAND Flash controller */
     target_phys_addr_t nand_base;
     struct nand_flash_s *nand;
-    uint16_t nfconf;
+    uint32_t nfconf;
+    uint16_t nfcont;
     uint8_t nfcmd;
-    uint8_t nfaddr;
+    uint32_t nfaddr;
     struct ecc_state_s nfecc;
     int nfwp;
 };
 
 /* NAND Flash controller */
 #define S3C_NFCONF	0x00	/* NAND Flash Configuration register */
-#define S3C_NFCMD	0x04	/* NAND Flash Command Set register */
-#define S3C_NFADDR	0x08	/* NAND Flash Address Set register */
-#define S3C_NFDATA	0x0c	/* NAND Flash Data register */
-#define S3C_NFSTAT	0x10	/* NAND Flash Operation Status register */
+
+#define S3C_NFCONT	0x04	/* NAND Flash Configuration register */
+#define S3C_NFCMD	0x08	/* NAND Flash Command Set register */
+#define S3C_NFADDR	0x0c	/* NAND Flash Address Set register */
+#define S3C_NFDATA	0x10	/* NAND Flash Data register */
+#define S3C_NFSTAT	0x20	/* NAND Flash Operation Status register */
+#define S3C_NFSTAT0	0x24	/* NAND Flash Operation Status register */
+#define S3C_NFSTAT1	0x28	/* NAND Flash Operation Status register */
+
 #define S3C_NFECC	0x14	/* NAND Flash ECC register */
+#define S3C_NFECCD0	0x14	/* NAND Flash ECC register */
+#define S3C_NFECCD1	0x18	/* NAND Flash ECC register */
+#define S3C_NFECCD	0x1c	/* NAND Flash ECC register */
 
 static void s3c2440_nand_reset(void * opaque)
 {
 	struct s3c2440_nand_s *s = (struct s3c2440_nand_s *)opaque;
-    s->nfconf = 0;
+    s->nfconf = 0x00001000;
+    s->nfcont = 0x0384;
     s->nfcmd = 0;
     s->nfaddr = 0;
     ecc_reset(&s->nfecc);
@@ -51,12 +61,14 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
     switch (addr) {
     case S3C_NFCONF:
         return s->nfconf;
+    case S3C_NFCONT:
+        return s->nfcont;
     case S3C_NFCMD:
         return s->nfcmd;
     case S3C_NFADDR:
         return s->nfaddr;
     case S3C_NFDATA:
-        if (s->nfconf & (1 << 15))
+        if (s->nfcont & (1 << 0))
             return ecc_digest(&s->nfecc, nand_getio(s->nand));
         break;
     case S3C_NFSTAT:
@@ -90,13 +102,16 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
 
     switch (addr) {
     case S3C_NFCONF:
-        s->nfconf = value & 0x9fff;
-        if (value & (1 << 12))
-            ecc_reset(&s->nfecc);
+        s->nfconf = value & 0xffff;
         break;
+    case S3C_NFCONT:
+        s->nfcont = value & 0xffff;
+        if (value & (1 << 4))
+            ecc_reset(&s->nfecc);
+		break;        
     case S3C_NFCMD:
         s->nfcmd = value & 0xff;
-        if (s->nfconf & (1 << 15)) {
+        if (s->nfcont & (1 << 0)) {
             nand_setpins(s->nand, 1, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
             nand_setio(s->nand, s->nfcmd);
             nand_setpins(s->nand, 0, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
@@ -104,14 +119,14 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
         break;
     case S3C_NFADDR:
         s->nfaddr = value & 0xff;
-        if (s->nfconf & (1 << 15)) {
+        if (s->nfcont & (1 << 0)) {
             nand_setpins(s->nand, 0, 1, (s->nfconf >> 11) & 1, s->nfwp, 0);
             nand_setio(s->nand, s->nfaddr);
             nand_setpins(s->nand, 0, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
         }
         break;
     case S3C_NFDATA:
-        if (s->nfconf & (1 << 15))
+        if (s->nfcont & (1 << 0))
             nand_setio(s->nand, ecc_digest(&s->nfecc, value & 0xff));
         break;
     default:
