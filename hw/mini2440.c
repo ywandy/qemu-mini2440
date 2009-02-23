@@ -176,7 +176,7 @@ static void mini2440_init(ram_addr_t ram_size, int vga_ram_size,
     neo = mini2440_init_common(ram_size, ds,
                     kernel_filename, cpu_model, sd, MACH_MINI2440);
 
-    s3c_nand_register(neo->cpu, nand_init(NAND_MFR_SAMSUNG, 0xa2));
+    neo->cpu->nand->reg(neo->cpu->nand, nand_init(NAND_MFR_SAMSUNG, 0xa2));
 
 
 }

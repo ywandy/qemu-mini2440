@@ -175,6 +175,15 @@ struct s3c_udc_state_s *s3c_udc_init(target_phys_addr_t base, qemu_irq irq,
                 qemu_irq *dma);
 void s3c_udc_reset(struct s3c_udc_state_s *s);
 
+struct s3c_nand_driver_s {
+	void (*reset)(void * opaque);
+	void (*setwp)(void * opaque, int wp);
+	void (*reg)(void * opaque, struct nand_flash_s *chip);
+};
+
+/* s3c2410_nand.c */
+struct s3c_nand_driver_s * s3c2410_nand_init();
+
 /* s3c2410.c */
 struct s3c_spi_state_s;
 struct s3c_spi_state_s *s3c_spi_init(target_phys_addr_t base,
@@ -203,19 +212,11 @@ struct s3c_state_s {
     struct s3c_spi_state_s *spi;
     struct s3c_udc_state_s *udc;
     struct s3c_wdt_state_s *wdt;
+    struct s3c_nand_driver_s *nand;
 
     /* Memory controller */
     target_phys_addr_t mc_base;
     uint32_t mc_regs[13];
-
-    /* NAND Flash controller */
-    target_phys_addr_t nand_base;
-    struct nand_flash_s *nand;
-    uint16_t nfconf;
-    uint8_t nfcmd;
-    uint8_t nfaddr;
-    struct ecc_state_s nfecc;
-    int nfwp;
 
     /* Clock & power management */
     target_phys_addr_t clkpwr_base;
@@ -225,8 +226,7 @@ struct s3c_state_s {
 /* s3c2410.c */
 struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, DisplayState *ds,
 		SDState *mmc);
-void s3c_nand_register(struct s3c_state_s *s, struct nand_flash_s *chip);
-void s3c_nand_setwp(struct s3c_state_s *s, int wp);
+
 
 struct s3c_i2s_state_s { /* XXX move to .c */
     target_phys_addr_t base;

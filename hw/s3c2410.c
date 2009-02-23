@@ -443,145 +443,6 @@ static int s3c_mc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-/* NAND Flash controller */
-#define S3C_NFCONF	0x00	/* NAND Flash Configuration register */
-#define S3C_NFCMD	0x04	/* NAND Flash Command Set register */
-#define S3C_NFADDR	0x08	/* NAND Flash Address Set register */
-#define S3C_NFDATA	0x0c	/* NAND Flash Data register */
-#define S3C_NFSTAT	0x10	/* NAND Flash Operation Status register */
-#define S3C_NFECC	0x14	/* NAND Flash ECC register */
-
-static void s3c_nand_reset(struct s3c_state_s *s)
-{
-    s->nfconf = 0;
-    s->nfcmd = 0;
-    s->nfaddr = 0;
-    ecc_reset(&s->nfecc);
-}
-
-static uint32_t s3c_nand_read(void *opaque, target_phys_addr_t addr)
-{
-    struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    int rb, shr = 0;
-    if (!s->nand)
-        return 0;
-    addr -= s->nand_base;
-
-    switch (addr) {
-    case S3C_NFCONF:
-        return s->nfconf;
-    case S3C_NFCMD:
-        return s->nfcmd;
-    case S3C_NFADDR:
-        return s->nfaddr;
-    case S3C_NFDATA:
-        if (s->nfconf & (1 << 15))
-            return ecc_digest(&s->nfecc, nand_getio(s->nand));
-        break;
-    case S3C_NFSTAT:
-        nand_getpins(s->nand, &rb);
-        return rb;
-    case S3C_NFECC + 2: shr += 8;
-    case S3C_NFECC + 1: shr += 8;
-    case S3C_NFECC:
-#define ECC(shr, b, shl)	((s->nfecc.lp[b] << (shl - shr)) & (1 << shl))
-        return (~(
-            ECC(0, 1, 0) | ECC(0, 0, 1) | ECC(1, 1, 2) | ECC(1, 0, 3) |
-            ECC(2, 1, 4) | ECC(2, 0, 5) | ECC(3, 1, 6) | ECC(3, 0, 7) |
-            ECC(4, 1, 8) | ECC(4, 0, 9) | ECC(5, 1, 10) | ECC(5, 0, 11) |
-            ECC(6, 1, 12) | ECC(6, 0, 13) | ECC(7, 1, 14) | ECC(7, 0, 15) |
-            ECC(8, 1, 16) | ECC(8, 0, 17) | (s->nfecc.cp << 18)) >> shr) &
-            0xff;
-#undef ECC
-    default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
-        break;
-    }
-    return 0;
-}
-
-static void s3c_nand_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
-{
-    struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    if (!s->nand)
-        return;
-    addr -= s->nand_base;
-
-    switch (addr) {
-    case S3C_NFCONF:
-        s->nfconf = value & 0x9fff;
-        if (value & (1 << 12))
-            ecc_reset(&s->nfecc);
-        break;
-    case S3C_NFCMD:
-        s->nfcmd = value & 0xff;
-        if (s->nfconf & (1 << 15)) {
-            nand_setpins(s->nand, 1, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
-            nand_setio(s->nand, s->nfcmd);
-            nand_setpins(s->nand, 0, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
-        }
-        break;
-    case S3C_NFADDR:
-        s->nfaddr = value & 0xff;
-        if (s->nfconf & (1 << 15)) {
-            nand_setpins(s->nand, 0, 1, (s->nfconf >> 11) & 1, s->nfwp, 0);
-            nand_setio(s->nand, s->nfaddr);
-            nand_setpins(s->nand, 0, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
-        }
-        break;
-    case S3C_NFDATA:
-        if (s->nfconf & (1 << 15))
-            nand_setio(s->nand, ecc_digest(&s->nfecc, value & 0xff));
-        break;
-    default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
-    }
-}
-
-void s3c_nand_register(struct s3c_state_s *s, struct nand_flash_s *chip)
-{
-    s->nand = chip;
-}
-
-void s3c_nand_setwp(struct s3c_state_s *s, int wp)
-{
-    s->nfwp = wp;
-}
-
-static CPUReadMemoryFunc *s3c_nand_readfn[] = {
-    s3c_nand_read,
-    s3c_nand_read,
-    s3c_nand_read,
-};
-
-static CPUWriteMemoryFunc *s3c_nand_writefn[] = {
-    s3c_nand_write,
-    s3c_nand_write,
-    s3c_nand_write,
-};
-
-static void s3c_nand_save(QEMUFile *f, void *opaque)
-{
-    struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    qemu_put_be16s(f, &s->nfconf);
-    qemu_put_8s(f, &s->nfcmd);
-    qemu_put_8s(f, &s->nfaddr);
-    qemu_put_be32(f, s->nfwp);
-    ecc_put(f, &s->nfecc);
-}
-
-static int s3c_nand_load(QEMUFile *f, void *opaque, int version_id)
-{
-    struct s3c_state_s *s = (struct s3c_state_s *) opaque;
-    qemu_get_be16s(f, &s->nfconf);
-    qemu_get_8s(f, &s->nfcmd);
-    qemu_get_8s(f, &s->nfaddr);
-    s->nfwp = qemu_get_be32(f);
-    ecc_get(f, &s->nfecc);
-    return 0;
-}
-
 /* Clock & power management */
 #define S3C_LOCKTIME	0x00	/* PLL Lock Time Count register */
 #define S3C_MPLLCON	0x04	/* MPLL Configuration register */
@@ -2831,7 +2692,8 @@ static void s3c2410_reset(void *opaque)
     s3c_udc_reset(s->udc);
     s3c_wdt_reset(s->wdt);
     s3c_clkpwr_reset(s);
-    s3c_nand_reset(s);
+ //   s3c_nand_reset(s);
+    s->nand->reset(s->nand);
     for (i = 0; s3c2410_uart[i].base; i ++)
         s3c_uart_reset(s->uart[i]);
     cpu_reset(s->env);
@@ -2880,12 +2742,7 @@ struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, Displ
 
     s->lcd = s3c_lcd_init(0x4d000000, ds, s->irq[S3C_PIC_LCD]);
 
-    s->nand_base = 0x4e000000;
-    s3c_nand_reset(s);
-    iomemtype = cpu_register_io_memory(0, s3c_nand_readfn,
-                    s3c_nand_writefn, s);
-    cpu_register_physical_memory(s->nand_base, 0xffffff, iomemtype);
-    register_savevm("s3c24xx_nand", 0, 0, s3c_nand_save, s3c_nand_load, s);
+    s->nand = s3c2410_nand_init(s);
 
     for (i = 0; s3c2410_uart[i].base; i ++) {
         s->uart[i] = s3c_uart_init(s3c2410_uart[i].base,
@@ -2925,7 +2782,8 @@ struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, Displ
 
     qemu_register_reset(s3c2410_reset, s);
 
-    s3c_nand_setwp(s, 1);
+    s->nand->setwp(s->nand, 1);
+    //s3c_nand_setwp(s, 1);
 
     /* Power on reset */
     s3c_gpio_setpwrstat(s->io, 1);
