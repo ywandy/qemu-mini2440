@@ -154,7 +154,7 @@ void s3c_gpio_reset(struct s3c_gpio_state_s *s);
 
 /* s3c24xx_lcd.c */
 struct s3c_lcd_state_s;
-struct s3c_lcd_state_s *s3c_lcd_init(target_phys_addr_t base, DisplayState *ds,
+struct s3c_lcd_state_s *s3c_lcd_init(target_phys_addr_t base,
                 qemu_irq irq);
 void s3c_lcd_reset(struct s3c_lcd_state_s *s);
 
@@ -226,7 +226,7 @@ struct s3c_state_s {
 };
 
 /* s3c2410.c */
-struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, DisplayState *ds,
+struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size,
 		SDState *mmc);
 
 

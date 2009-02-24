@@ -2696,7 +2696,7 @@ static void s3c2410_reset(void *opaque)
 }
 
 /* Initialise an S3C2410A microprocessor.  */
-struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, DisplayState *ds,
+struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size,
 		SDState *mmc)
 {
     struct s3c_state_s *s;
@@ -2740,7 +2740,7 @@ struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, Displ
     register_savevm("s3c24xx_clkpwr", 0, 0,
                     s3c_clkpwr_save, s3c_clkpwr_load, s);
 
-    s->lcd = s3c_lcd_init(0x4d000000, ds, s->irq[S3C_PIC_LCD]);
+    s->lcd = s3c_lcd_init(0x4d000000, s->irq[S3C_PIC_LCD]);
 
     if (s->cpu_id == S3C_CPU_2440)
     	s->nand = s3c2440_nand_init();
