@@ -2781,7 +2781,7 @@ struct s3c_state_s *s3c24xx_init(
                     s->irq[S3C_PIC_SPI0], s->drq[S3C_RQ_SPI0],
                     s->irq[S3C_PIC_SPI1], s->drq[S3C_RQ_SPI1], s->io);
 
-    s->mmci = s3c_mmci_init(0x5a000000, 0x2410, mmc,
+    s->mmci = s3c_mmci_init(0x5a000000, s->cpu_id, mmc,
                     s->irq[S3C_PIC_SDI], s->drq);
 
     if (usb_enabled) {

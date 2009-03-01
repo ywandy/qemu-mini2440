@@ -11,6 +11,30 @@
 #include "sd.h"
 #include "hw.h"
 
+#include "s3c24xx_mmci.h"
+
+#define S3C_SDICON	0x00	/* SDI Control register */
+#define S3C_SDIPRE	0x04	/* SDI Baud Rate Prescaler register */
+#define S3C_SDICARG	0x08	/* SDI Command Argument register */
+#define S3C_SDICCON	0x0c	/* SDI Command Control register */
+#define S3C_SDICSTA	0x10	/* SDI Command Status register */
+#define S3C_SDIRSP0	0x14	/* SDI Response register 0 */
+#define S3C_SDIRSP1	0x18	/* SDI Response register 1 */
+#define S3C_SDIRSP2	0x1c	/* SDI Response register 2 */
+#define S3C_SDIRSP3	0x20	/* SDI Response register 3 */
+#define S3C_SDIDTIMER	0x24	/* SDI Data / Busy Timer register */
+#define S3C_SDIBSIZE	0x28	/* SDI Block Size register */
+#define S3C_SDIDCON	0x2c	/* SDI Data Control register */
+#define S3C_SDICNT	0x30	/* SDI Data Remain Counter register */
+#define S3C_SDIDSTA	0x34	/* SDI Data Status register */
+#define S3C_SDIFSTA	0x38	/* SDI FIFO Status register */
+#define S3C_SDIDAT	0x3c	/* SDI Data register */
+#define S3C_SDIMSK	0x40	/* SDI Interrupt Mask register */
+
+#define S3C_SDIMAX	0x40
+
+#define S3C2410_SDIDSTA_COMPLETION	(S3C2410_SDIDSTA_TXDATAON|S3C2410_SDIDSTA_RXDATAON)
+
 struct s3c_mmci_state_s {
     target_phys_addr_t base;
     qemu_irq irq;
@@ -38,7 +62,7 @@ struct s3c_mmci_state_s {
     uint32_t mask;
     uint8_t prescaler;
 
-    uint16_t model;
+    uint32_t cpu_id;
     const target_phys_addr_t *map;
 };
 
@@ -76,8 +100,8 @@ static void s3c_mmci_fifo_run(struct s3c_mmci_state_s *s)
 
     len = s->fifolen;
     if (((s->dcontrol >> 12) & 3) == 2) {			/* DatMode */
-        s->dstatus &= ~3;
-        s->dstatus |= 1 << 0;					/* RxDatOn */
+        s->dstatus &= ~S3C2410_SDIDSTA_COMPLETION;
+        s->dstatus |= S3C2410_SDIDSTA_RXDATAON;					/* RxDatOn */
         while (s->fifolen < 64 && s->blklen_cnt) {
             s->fifo[(s->fifostart + s->fifolen ++) & 63] =
                     sd_read_data(s->card);
@@ -85,18 +109,18 @@ static void s3c_mmci_fifo_run(struct s3c_mmci_state_s *s)
                 if (-- s->blknum_cnt)
                     s->blklen_cnt = s->blklen;
         }
-        if ((s->mask & (1 << 0)) &&				/* RFHalf */
+        if ((s->mask & S3C2410_SDIIMSK_RXFIFOHALF) &&				/* RFHalf */
                         s->fifolen > 31 && len < 32)
             qemu_irq_raise(s->irq);
-        if ((s->mask & (1 << 1)) &&				/* RFFull */
+        if ((s->mask & S3C2410_SDIIMSK_RXFIFOFULL) &&				/* RFFull */
                         s->fifolen > 63 && len < 64)
             qemu_irq_raise(s->irq);
-        if ((s->mask & (1 << 2)) && !s->blklen_cnt)		/* RFLast */
+        if ((s->mask & S3C2410_SDIIMSK_RXFIFOLAST) && !s->blklen_cnt)		/* RFLast */
             qemu_irq_raise(s->irq);
         dmalevel = !!s->fifolen;
     } else if (((s->dcontrol >> 12) & 3) == 3) {		/* DatMode */
-        s->dstatus &= ~3;
-        s->dstatus |= 1 << 0;					/* TxDatOn */
+        s->dstatus &= ~S3C2410_SDIDSTA_COMPLETION;
+        s->dstatus |= S3C2410_SDIDSTA_TXDATAON;					/* TxDatOn */
         while (s->fifolen && s->blklen_cnt) {
             sd_write_data(s->card, s->fifo[s->fifostart ++]);
             s->fifostart &= 63;
@@ -105,9 +129,9 @@ static void s3c_mmci_fifo_run(struct s3c_mmci_state_s *s)
                 if (-- s->blknum_cnt)
                     s->blklen_cnt = s->blklen;
         }
-        if ((s->mask & (1 << 3)) && !s->fifolen && len)		/* TFEmpty */
+        if ((s->mask & S3C2410_SDIIMSK_TXFIFOEMPTY) && !s->fifolen && len)		/* TFEmpty */
             qemu_irq_raise(s->irq);
-        if ((s->mask & (1 << 4)) &&				/* TFHalf */
+        if ((s->mask & S3C2410_SDIIMSK_TXFIFOHALF) &&				/* TFHalf */
                         s->fifolen < 33 && len > 32)
             qemu_irq_raise(s->irq);
         dmalevel = (s->fifolen < 64) && (s->blklen_cnt > 0);
@@ -116,13 +140,13 @@ static void s3c_mmci_fifo_run(struct s3c_mmci_state_s *s)
 
     if (!s->blklen_cnt) {
         s->data = 0;
-        s->dstatus &= ~3;
-        s->dstatus |= 1 << 4;					/* DatFin */
-        if (s->mask & (1 << 7))					/* DatFin */
+        s->dstatus &= ~S3C2410_SDIDSTA_COMPLETION;
+        s->dstatus |= S3C2410_SDIDSTA_XFERFINISH;					/* DatFin */
+        if (s->mask & S3C2410_SDIIMSK_DATAFINISH)					/* DatFin */
             qemu_irq_raise(s->irq);
     }
 dmaupdate:
-    if (s->dcontrol & (1 << 15)) {				/* EnDMA */
+    if (s->dcontrol & S3C2410_SDIDCON_DMAEN) {				/* EnDMA */
         qemu_set_irq(s->dma[S3C_RQ_SDI0], dmalevel);
         qemu_set_irq(s->dma[S3C_RQ_SDI1], dmalevel);
         qemu_set_irq(s->dma[S3C_RQ_SDI2], dmalevel);
@@ -141,15 +165,15 @@ static void s3c_mmci_cmd_submit(struct s3c_mmci_state_s *s)
 
     rsplen = sd_do_command(s->card, &request, response);
     s->cstatus = (s->cstatus & ~0x11ff) | request.cmd;		/* RspIndex */
-    s->cstatus |= 1 << 11;					/* CmdSent */
-    if (s->mask & (1 << 16))					/* CmdSent */
+    s->cstatus |= S3C2410_SDICMDSTAT_CMDSENT;					/* CmdSent */
+    if (s->mask & S3C2410_SDIIMSK_CMDSENT)					/* CmdSent */
         qemu_irq_raise(s->irq);
 
     memset(s->resp, 0, sizeof(s->resp));
-    if (!(s->ccontrol & (1 << 9)))				/* WaitRsp */
+    if (!(s->ccontrol & S3C2410_SDICMDCON_WAITRSP))				/* WaitRsp */
         goto complete;	/* No response */
 
-    if (s->ccontrol & (1 << 10)) {				/* LongRsp */
+    if (s->ccontrol & S3C2410_SDICMDCON_LONGRSP) {				/* LongRsp */
         /* R2 */
         if (rsplen < 16)
             goto timeout;
@@ -163,7 +187,7 @@ static void s3c_mmci_cmd_submit(struct s3c_mmci_state_s *s)
         s->resp[i >> 2] |= response[i] << ((~i & 3) << 3);
 
     s->cstatus |= 1 << 9;					/* RspFin */
-    if (s->mask & (1 << 14))					/* RspEnd */
+    if (s->mask & S3C2410_SDIIMSK_RESPONSEND)					/* RspEnd */
         qemu_irq_raise(s->irq);
 
 complete:
@@ -189,29 +213,10 @@ complete:
 
 timeout:
     s->cstatus |= 1 << 10;					/* CmdTout */
-    if (s->mask & (1 << 15))					/* CmdTout */
+    if (s->mask & S3C2410_SDIIMSK_CMDTIMEOUT)					/* CmdTout */
         qemu_irq_raise(s->irq);
 }
 
-#define S3C_SDICON	0x00	/* SDI Control register */
-#define S3C_SDIPRE	0x04	/* SDI Baud Rate Prescaler register */
-#define S3C_SDICARG	0x08	/* SDI Command Argument register */
-#define S3C_SDICCON	0x0c	/* SDI Command Control register */
-#define S3C_SDICSTA	0x10	/* SDI Command Status register */
-#define S3C_SDIRSP0	0x14	/* SDI Response register 0 */
-#define S3C_SDIRSP1	0x18	/* SDI Response register 1 */
-#define S3C_SDIRSP2	0x1c	/* SDI Response register 2 */
-#define S3C_SDIRSP3	0x20	/* SDI Response register 3 */
-#define S3C_SDIDTIMER	0x24	/* SDI Data / Busy Timer register */
-#define S3C_SDIBSIZE	0x28	/* SDI Block Size register */
-#define S3C_SDIDCON	0x2c	/* SDI Data Control register */
-#define S3C_SDICNT	0x30	/* SDI Data Remain Counter register */
-#define S3C_SDIDSTA	0x34	/* SDI Data Status register */
-#define S3C_SDIFSTA	0x38	/* SDI FIFO Status register */
-#define S3C_SDIDAT	0x3c	/* SDI Data register */
-#define S3C_SDIMSK	0x40	/* SDI Interrupt Mask register */
-
-#define S3C_SDIMAX	0x40
 
 static uint32_t s3c_mmci_readw(void *opaque, target_phys_addr_t addr)
 {
@@ -251,19 +256,19 @@ static uint32_t s3c_mmci_readw(void *opaque, target_phys_addr_t addr)
     case S3C_SDIDSTA:
         return s->dstatus;
     case S3C_SDIFSTA:
-        /* XXX on S3C2440 these bits have to cleared explicitely.  */
+        /* TODO: S3C2440 these bits have to cleared explicitely.  */
         if (((s->dcontrol >> 12) & 3) == 2)			/* DatMode */
             return s->fifolen |					/* FFCNT */
-                ((s->fifolen > 31) ? (1 << 7) : 0) |		/* RFHalf */
-                ((s->fifolen > 63) ? (1 << 8) : 0) |		/* RFFull */
-                (s->blklen_cnt ? 0 : (1 << 9)) |		/* RFLast */
+                ((s->fifolen > 31) ? S3C2410_SDIFSTA_RFHALF : 0) |		/* RFHalf */
+                ((s->fifolen > 63) ? S3C2410_SDIFSTA_RFFULL : 0) |		/* RFFulx */
+                (s->blklen_cnt ? 0 : S3C2410_SDIFSTA_RFLAST) |		/* RFLast */
                 (3 << 10) |					/* TFHalf */
                 (s->fifolen ? (1 << 12) : 0);			/* RFDET */
         else if (((s->dcontrol >> 12) & 3) == 3)		/* DatMode */
             return s->fifolen |					/* FFCNT */
-                (s->fifolen ? 0 : (1 << 10)) |			/* TFEmpty */
-                ((s->fifolen < 33) ? (1 << 11) : 0) |		/* TFHalf */
-                ((s->fifolen < 64) ? (1 << 13) : 0);		/* TFDET */
+                (s->fifolen ? 0 : S3C2410_SDIFSTA_TFEMPTY) |			/* TFEmpty */
+                ((s->fifolen < 33) ? S3C2410_SDIFSTA_TFHALF : 0) |		/* TFHalf */
+                ((s->fifolen < 64) ? S3C2410_SDIFSTA_TFDET : 0);		/* TFDET */
         else
             return s->fifolen;					/* FFCNT */
     case S3C_SDIDAT:
@@ -329,21 +334,21 @@ static void s3c_mmci_writew(void *opaque, target_phys_addr_t addr,
         s->blklen = value & 0xfff;
         break;
     case S3C_SDIDCON:
-        s->dcontrol = value;
-        s->blknum = value & 0xfff;
-        if (value & (1 << 14))					/* STOP */
-            s->data = 0;
-        if (((s->dcontrol >> 12) & 3) == 1) {			/* DatMode */
-            if (!(s->dcontrol & (1 << 18)))			/* BACMD */
-                s->data = 1;
-	} else if (((s->dcontrol >> 12) & 3) == 2) {		/* DatMode */
-            if (!(s->dcontrol & (1 << 19)))			/* RACMD */
-                s->data = 1;
-	} else if (((s->dcontrol >> 12) & 3) == 3)		/* DatMode */
-            if (!(s->dcontrol & (1 << 20)))			/* RACMD */
-                s->data = 1;
-        s3c_mmci_fifo_run(s);
-        break;
+		s->dcontrol = value;
+		s->blknum = value & 0xfff;
+		if (value & (1 << 14)) /* STOP */
+			s->data = 0;
+		if (((s->dcontrol >> 12) & 3) == 1) { /* DatMode */
+			if (!(s->dcontrol & (1 << 18))) /* BACMD */
+				s->data = 1;
+		} else if (((s->dcontrol >> 12) & 3) == 2) { /* DatMode */
+			if (!(s->dcontrol & (1 << 19))) /* RACMD */
+				s->data = 1;
+		} else if (((s->dcontrol >> 12) & 3) == 3) /* DatMode */
+			if (!(s->dcontrol & (1 << 20))) /* RACMD */
+				s->data = 1;
+		s3c_mmci_fifo_run(s);
+		break;
     case S3C_SDIDSTA:
         s->dstatus &= ~(value & 0x3f8);
         break;
@@ -451,13 +456,15 @@ static void s3c_mmci_cardirq(void *opaque, int line, int level)
 {
     struct s3c_mmci_state_s *s = (struct s3c_mmci_state_s *) opaque;
 
-    if (~s->control & (1 << 3))					/* RcvIOInt */
+    printf("%s: level %d (control %04x)\n", __FUNCTION__, level, s->control);
+
+    if (!(s->control & S3C2410_SDICON_SDIOIRQ))					/* RcvIOInt */
         return;
     if (!level)
         return;
 
-    s->dstatus |= 1 << 9;					/* IOIntDet */
-    if (s->mask & (1 << 12))					/* IOIntDet */
+    s->dstatus |= S3C2410_SDIDSTA_SDIOIRQDETECT;					/* IOIntDet */
+    if (s->mask & S3C2410_SDIIMSK_SDIOIRQ)					/* IOIntDet */
         qemu_irq_raise(s->irq);
 }
 
@@ -559,7 +566,7 @@ static int s3c_mmci_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct s3c_mmci_state_s *s3c_mmci_init(target_phys_addr_t base, uint16_t model,
+struct s3c_mmci_state_s *s3c_mmci_init(target_phys_addr_t base, uint32_t cpu_id,
 		SDState *mmc, qemu_irq irq, qemu_irq *dma)
 {
     int iomemtype;
@@ -574,22 +581,21 @@ struct s3c_mmci_state_s *s3c_mmci_init(target_phys_addr_t base, uint16_t model,
     s->irq = irq;
     s->dma = dma;
     s->card = mmc;
-    s->model = model;
-    switch (model) {
-    case 0x2410:
+    s->cpu_id = cpu_id;
+    switch (cpu_id) {
+    case S3C_CPU_2410:
         s->map = s3c2410_regmap;
         break;
-    case 0x2440:
+    case S3C_CPU_2440:
         s->map = s3c2440_regmap;
         break;
     default:
-        fprintf(stderr, "%s: unknown MMC/SD/SDIO HC model %04x\n",
-                        __FUNCTION__, model);
+        fprintf(stderr, "%s: unknown MMC/SD/SDIO HC model %08x\n",
+                        __FUNCTION__, cpu_id);
         exit(-1);
     }
 
     sd_set_cb(mmc, 0, qemu_allocate_irqs(s3c_mmci_cardirq, s, 1)[0]);
-    //mmc->irq = qemu_allocate_irqs(s3c_mmci_cardirq, s, 1)[0];
 
     s3c_mmci_reset(s);
 
