@@ -11,12 +11,13 @@ if [ ! -f "$name_nand" ]; then
 	echo $0 : creating NAND empty image : "$name_nand"
 	dd if=/dev/zero of="$name_nand" bs=528 count=131072
 fi
-#if [ -f "$name_sd" ]; then
-#	optional="$optional -sd $name_sd"
-#	optional=""
+if [ -f /dev/sdd]; then
 	# use a real SD card
 	optional="$optional -sd /dev/sdd"
-#fi
+elif [ -f "$name_sd" ]; then
+	optional="$optional -sd $name_sd"
+	optional=""
+fi
 # remove old socket
 rm -rf .mini2440_monitor
 
