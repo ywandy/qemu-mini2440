@@ -46,13 +46,32 @@ struct mini2440_board_s {
     const char * kernel;
     SDState * mmc;
     struct nand_flash_s *nand;
+    int bl_level;
 };
 
 
+/* Handlers for output ports */
+static void mini2440_bl_switch(void *opaque, int line, int level)
+{
+	printf("%s: LCD Backlight now %s.\n", __FUNCTION__, level ? "on" : "off");
+}
+
+static void mini2440_bl_intensity(int line, int level, void *opaque)
+{
+    struct mini2440_board_s *s = (struct mini2440_board_s *) opaque;
+
+    if ((level >> 8) != s->bl_level) {
+        s->bl_level = level >> 8;
+        printf("%s: LCD Backlight now at %i/64.\n", __FUNCTION__, s->bl_level);
+    }
+}
+
 static void mini2440_gpio_setup(struct mini2440_board_s *s)
 {
-//    s3c_gpio_out_set(s->cpu->io, MINI2440_GPIO_BACKLIGHT,
-//                    *qemu_allocate_irqs(mini2440_bl_switch, s, 1));
+    s3c_gpio_out_set(s->cpu->io, MINI2440_GPIO_BACKLIGHT,
+                    *qemu_allocate_irqs(mini2440_bl_switch, s, 1));
+
+    s3c_timers_cmp_handler_set(s->cpu->timers, 1, mini2440_bl_intensity, s);
 
     // this confuses the kernel, we will need a way to bridge this IRQ to the SD system
     // right now without this, qemu will not know how to pass the SD card insert/remove
@@ -60,7 +79,21 @@ static void mini2440_gpio_setup(struct mini2440_board_s *s)
 //	sd_set_cb(s->mmc, 0, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]);
 }
 
-	sd_set_cb(s->mmc, 0, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]);
+static void hexdump(const void* address, uint32_t len)
+{
+    const unsigned char* p = address;
+    int i, j;
+
+    for (i = 0; i < len; i += 16) {
+	for (j = 0; j < 16 && i + j < len; j++)
+	    fprintf(stderr, "%02x ", p[i + j]);
+	for (; j < 16; j++)
+	    fprintf(stderr, "   ");
+	fprintf(stderr, " ");
+	for (j = 0; j < 16 && i + j < len; j++)
+	    fprintf(stderr, "%c", (p[i + j] < ' ' || p[i + j] > 0x7f) ? '.' : p[i + j]);
+	fprintf(stderr, "\n");
+    }
 }
 
 static void mini2440_reset(void *opaque)
@@ -68,28 +101,55 @@ static void mini2440_reset(void *opaque)
     struct mini2440_board_s *s = (struct mini2440_board_s *) opaque;
     uint32_t image_size;
 
+	if (1) {
+	    image_size = load_image("mini2440/u-boot.bin", phys_ram_base + 0x03f80000);
+	    if (!image_size)
+		    image_size = load_image("u-boot.bin", phys_ram_base + 0x03f80000);
+	   	if (image_size) {
+	   		if (image_size & (512 -1))	/* round size to a NAND block size */
+	   			image_size = (image_size + 512) & ~(512-1);
+	        fprintf(stderr, "%s: loaded default u-boot (size %x)\n", __FUNCTION__, image_size);
+		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	// start address, u-boot already relocated
+	   	}
+	}
 #if 0
     /*
      * Performs Samsung S3C2440 bootup, but loading 4KB of the nand at the base of the RAM
      * and jumping there
      */
-    uint8_t * src = s->cpu->nand->storage;
-    uint8_t * dst = phys_ram_base;
-    int page = 0;
-    for (page = 0; page < 4 page++, src += 264, dst += 256)
-    	memcpy(dst, src, 256);
-    s->cpu->env->regs[15] = S3C_RAM_BASE;	// start address, u-boot relocating code
+    if (s->nand) {
+    	uint32_t src = 0;
+	    int page = 0;
+	    uint8_t stone[S3C_SRAM_SIZE];
+	    uint8_t * dst = stone;
+
+	    fprintf(stderr, "%s: attempting boot from NAND\n", __FUNCTION__);
+
+	    for (page = 0; page < (S3C_SRAM_SIZE / 512); page++, src += 512+16, dst += 512)
+	    	if (nand_readraw(s->nand, src, dst, 512) == 0) {
+	      		fprintf(stderr, "%s: failed to load nand %d:%d\n", __FUNCTION__, src, 512+16);
+	    	}
+		cpu_physical_memory_write(S3C_SRAM_BASE_NANDBOOT, stone, S3C_SRAM_SIZE);
+	    s->cpu->env->regs[15] = S3C_SRAM_BASE_NANDBOOT;	// start address, u-boot relocating code
+	    fprintf(stderr, "%s: 4KB SteppingStone loaded from NAND\n", __FUNCTION__);
+    }
 #endif
 	if (1) {
-	    image_size = load_image("u-boot.bin", phys_ram_base + 0x03f80000);
+	   	image_size = load_image(s->kernel, phys_ram_base + 0x02000000);
 	   	if (image_size) {
-	   		if (image_size & (512 -1))	/* round size to a NAND block size */ 
+	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
-	        fprintf(stderr, "%s: loaded override u-boot (size %x)\n", __FUNCTION__, image_size);
-		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	// start address, u-boot already relocated
-	   	}
+	        fprintf(stderr, "%s: loaded %s (size %x)\n", __FUNCTION__, s->kernel, image_size);
+	    }
 	}
-   	image_size = load_image(s->kernel, phys_ram_base + 0x02000000);
+	if (0) {
+	   	image_size = load_image("/tftpboot/minimalist-image-mini2440.jffs2", phys_ram_base);
+	   	if (image_size) {
+	   		if (image_size & (512 -1))	/* round size to a NAND block size */
+	   			image_size = (image_size + 512) & ~(512-1);
+	        fprintf(stderr, "%s: loaded jffs2 (size %x)\n", __FUNCTION__, image_size);
+	    }
+	}
 
 }
 
@@ -107,7 +167,7 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     struct mini2440_board_s *s = (struct mini2440_board_s *)
             qemu_mallocz(sizeof(struct mini2440_board_s));
 
-    s->ram = 0x08000000;
+    s->ram = 0x04000000;
     s->kernel = kernel_filename;
     s->mmc = mmc;
 
@@ -135,9 +195,6 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
 		if (!nd->model)
 		    nd->model = "dm9000";
 		if (strcmp(nd->model, "dm9000") == 0) {
-//    		s3c_gpio_out_set(s->cpu->io, MINI2440_GPIO_DM9000,
-//	                    *qemu_allocate_irqs(mini2440_bl_switch, s, 1));
-
 			dm9000_init(nd, 0x20000000, 0x300, 0x304, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_DM9000]);
 		}
 	}
