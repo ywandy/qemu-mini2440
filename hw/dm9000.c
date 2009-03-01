@@ -29,9 +29,26 @@
 #define DM9000_REG_NCR 			0x00
 #define DM9000_NCR_RESET 			(1 << 0)
 
+#define DM9000_NCR_EXT_PHY         (1<<7)
+#define DM9000_NCR_WAKEEN          (1<<6)
+#define DM9000_NCR_FCOL            (1<<4)
+#define DM9000_NCR_FDX             (1<<3)
+#define DM9000_NCR_LBK             (3<<1)
+
+#define DM9000_NCR_RESETPROTECT		(DM9000_NCR_EXT_PHY | DM9000_NCR_WAKEEN)
+
 #define DM9000_REG_NSR 			0x01
-#define DM9000_NSR_TX1END 			(1 << 2)
-#define DM9000_NSR_TX2END			(1 << 3)
+
+#define DM9000_NSR_SPEED           (1<<7)
+#define DM9000_NSR_LINKST          (1<<6)
+#define DM9000_NSR_WAKEST          (1<<5)
+#define DM9000_NSR_TX2END          (1<<3)
+#define DM9000_NSR_TX1END          (1<<2)
+#define DM9000_NSR_RXOV            (1<<1)
+
+#define DM9000_NSR_RESETPROTECT		(DM9000_NSR_WAKEST)
+#define DM9000_NSR_READONLY			(DM9000_NSR_SPEED|DM9000_NSR_LINKST|(1<<4)|DM9000_NSR_RXOV|(1<<0))
+
 #define DM9000_REG_TCR 			0x02
 #define DM9000_TCR_TXREQ 			(1 << 0)
 
@@ -105,6 +122,12 @@
 #define DM9000_REG_TXPLL 		0xFC
 #define DM9000_REG_TXPLH 		0xFD
 #define DM9000_REG_ISR 			0xFE
+#define DM9000_ISR_ROOS            (1<<3)
+#define DM9000_ISR_ROS             (1<<2)
+#define DM9000_ISR_PTS             (1<<1)
+#define DM9000_ISR_PRS             (1<<0)
+#define DM9000_ISR_CLR_STATUS      (ISR_ROOS | ISR_ROS | ISR_PTS | ISR_PRS)
+
 #define DM9000_REG_IMR 			0xFF
 #define DM9000_IMR_AUTOWRAP 		0x80
 
@@ -234,8 +257,8 @@ static void hexdump(const void* address, uint32_t len)
 
 static void dm9000_raise_irq(dm9000_state *s)
 {
-    int level = ((s->dm9k_isr & s->dm9k_imr) & 0x03) != 0;
-  //  DM9000_DBF("DM9000: Set IRQ level %d\n", level);
+    int level = ((s->dm9k_isr & s->dm9k_imr) & 0x0f) != 0;
+    //DM9000_DBF("DM9000: Set IRQ level %d (isr = %02x imr %02x\n", level, s->dm9k_isr, s->dm9k_imr);
     qemu_set_irq(s->irq, level);
 }
 
@@ -267,12 +290,12 @@ static void dm9000_soft_reset(dm9000_state *s)
     memset(s->packet_copy_buffer, 0, sizeof(s->packet_copy_buffer));
     /* These registers have some bits "unaffected by software reset" */
     /* Clear the reset bits */
-    s->dm9k_ncr &= 0xA0;
-    s->dm9k_nsr &= 0xD0;
+    s->dm9k_ncr &= DM9000_NCR_RESETPROTECT;
+    s->dm9k_nsr &= DM9000_NSR_RESETPROTECT;
     /* Claim full duplex */
-    s->dm9k_ncr |= 1<<3;
+    s->dm9k_ncr |= DM9000_NCR_FDX;
     /* Set link status to 1 */
-    s->dm9k_nsr |= 1<<6;
+    s->dm9k_nsr |= DM9000_NSR_LINKST;
     /* dm9k_wcr is unaffected or reserved, never reset */
     /* MII control regs */
     s->dm9k_epcr = 0x00;
@@ -325,7 +348,7 @@ static void dm9000_do_transmit(dm9000_state *s) {
 	s->dm9k_nsr |= 1 << (2 + s->packet_index);
 	DM9000_DBF("TX: NSR=%02x PI=%d\n", s->dm9k_nsr, s->packet_index);
 	/* Claim a TX complete IRQ */
-	s->dm9k_isr |= 0x02; /* Packet transmitted latch */
+	s->dm9k_isr |= DM9000_ISR_PTS; /* Packet transmitted latch */
 	/* And flip the next-packet bit */
 	s->packet_index++;
 
@@ -412,12 +435,13 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
 
     switch(s->address) {
     case DM9000_REG_NCR:
-        s->dm9k_ncr = value & 0xDF;
+        DM9000_DBF("DM9000_REG_NCR: %02x=%04x\n", s->address, value);
+        s->dm9k_ncr = value | DM9000_NCR_FDX;
         if (s->dm9k_ncr & DM9000_NCR_RESET)
             dm9000_soft_reset(s);
         break;
     case DM9000_REG_NSR:
-        s->dm9k_nsr &= ~(value & 0x2C);
+        s->dm9k_nsr &= ~(value & ~DM9000_NSR_READONLY);
         break;
     case DM9000_REG_TCR:
         s->dm9k_tcr = value & 0xFF;
@@ -715,7 +739,7 @@ static void dm9000_receive(void *opaque, const uint8_t *buf, int size)
     dm9000_state *s = (dm9000_state *)opaque;
     uint16_t rxptr = s->dm9k_rwpa, idx;
     unsigned int mcast_idx = 0;
-    int pad = 0;
+    int pad = 4;
 
     if (!(s->dm9k_rcr & DM9000_RCR_RXEN))
     	return;
@@ -777,7 +801,7 @@ static void dm9000_receive(void *opaque, const uint8_t *buf, int size)
     }
 
     s->dm9k_rwpa = DM9K_CLIP_RX_INDEX(rxptr);
-    s->dm9k_isr |= 0x01; /* RX interrupt, yay */
+    s->dm9k_isr |= DM9000_ISR_PRS; /* RX interrupt, yay */
     dm9000_raise_irq(s);
 }
 
