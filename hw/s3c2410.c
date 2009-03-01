@@ -2708,6 +2708,8 @@ struct s3c_state_s *s3c24xx_init(
     int iomemtype, i;
     s = (struct s3c_state_s *) qemu_mallocz(sizeof(struct s3c_state_s));
 
+    g_s3c = s;
+
     s->cpu_id = cpu_id;
 
     s->env = cpu_init("arm920t");
