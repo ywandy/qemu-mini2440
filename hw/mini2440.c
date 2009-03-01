@@ -45,6 +45,7 @@ struct mini2440_board_s {
     i2c_slave * eeprom;
     const char * kernel;
     SDState * mmc;
+    struct nand_flash_s *nand;
 };
 
 
@@ -166,7 +167,8 @@ static void mini2440_init(ram_addr_t ram_size, int vga_ram_size,
     mini = mini2440_init_common(ram_size,
                     kernel_filename, cpu_model, sd);
 
-    mini->cpu->nand->reg(mini->cpu->nand, nand_init(NAND_MFR_SAMSUNG, 0x36));
+	mini->nand = nand_init(NAND_MFR_SAMSUNG, 0x36);
+    mini->cpu->nand->reg(mini->cpu->nand, mini->nand);
 
     mini2440_reset(mini);
 }

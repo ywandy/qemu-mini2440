@@ -17,7 +17,7 @@ struct s3c2440_nand_s {
     /* NAND Flash controller */
     target_phys_addr_t nand_base;
     struct nand_flash_s *nand;
-    uint32_t nfconf;
+    uint16_t nfconf;
     uint16_t nfcont;
     uint8_t nfcmd;
     uint32_t nfaddr;
@@ -25,10 +25,16 @@ struct s3c2440_nand_s {
     int nfwp;
 };
 
+extern struct s3c_state_s *g_s3c;
+
 /* NAND Flash controller */
 #define S3C_NFCONF	0x00	/* NAND Flash Configuration register */
 
 #define S3C_NFCONT	0x04	/* NAND Flash Configuration register */
+#define S3C_NFCONT_MODE		(1 << 0)	/* NAND flash controller operating mode */
+#define S3C_NFCONT_CE		(1 << 1)	/* NAND Flash Memory nFCE signal control 0: active) */
+#define S3C_NFCONT_INITECC	(1 << 4)	/* Initialize ECC decoder/encoder(Write-only) */
+
 #define S3C_NFCMD	0x08	/* NAND Flash Command Set register */
 #define S3C_NFADDR	0x0c	/* NAND Flash Address Set register */
 #define S3C_NFDATA	0x10	/* NAND Flash Data register */
@@ -44,7 +50,7 @@ struct s3c2440_nand_s {
 static void s3c2440_nand_reset(void * opaque)
 {
 	struct s3c2440_nand_s *s = (struct s3c2440_nand_s *)opaque;
-    s->nfconf = 0x00001000;
+    s->nfconf = 0x1000;
     s->nfcont = 0x0384;
     s->nfcmd = 0;
     s->nfaddr = 0;
@@ -58,6 +64,8 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
     if (!s->nand)
         return 0;
 
+//    printf("%08x - %s: %02x\n", g_s3c->env->regs[15], __FUNCTION__, (unsigned long)addr);fflush(stdout);
+
     switch (addr) {
     case S3C_NFCONF:
         return s->nfconf;
@@ -66,10 +74,13 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
     case S3C_NFCMD:
         return s->nfcmd;
     case S3C_NFADDR:
-        return s->nfaddr;
+        return s->nfaddr >> 24; // last 8 bits poked
     case S3C_NFDATA:
-        if (s->nfcont & (1 << 0))
-            return ecc_digest(&s->nfecc, nand_getio(s->nand));
+        if (s->nfcont & S3C_NFCONT_MODE) {
+            uint32_t r1 = nand_getio(s->nand);
+            uint32_t res = ecc_digest(&s->nfecc, r1);
+            return res;
+        }
         break;
     case S3C_NFSTAT:
         nand_getpins(s->nand, &rb);
@@ -100,37 +111,41 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
     if (!s->nand)
         return;
 
+    //printf("%08x - %s: %02x = %lx\n", g_s3c->env->regs[15], __FUNCTION__, (unsigned long)addr, value);fflush(stdout);
+
     switch (addr) {
     case S3C_NFCONF:
         s->nfconf = value & 0xffff;
         break;
     case S3C_NFCONT:
-        s->nfcont = value & 0xffff;
-        if (value & (1 << 4))
+        if (value & S3C_NFCONT_MODE)
             ecc_reset(&s->nfecc);
-		break;        
+        s->nfcont = value & (0xffff ^ S3C_NFCONT_INITECC);
+		break;
     case S3C_NFCMD:
         s->nfcmd = value & 0xff;
-        if (s->nfcont & (1 << 0)) {
-            nand_setpins(s->nand, 1, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
+        if (s->nfcont & S3C_NFCONT_MODE) {
+            nand_setpins(s->nand, 1, 0, s->nfcont & S3C_NFCONT_CE, s->nfwp, 0);
             nand_setio(s->nand, s->nfcmd);
-            nand_setpins(s->nand, 0, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
+            nand_setpins(s->nand, 0, 0, s->nfcont & S3C_NFCONT_CE, s->nfwp, 0);
         }
         break;
+    case S3C_NFSTAT:	// it's OK to write to this on the 2440
+		break;
     case S3C_NFADDR:
-        s->nfaddr = value & 0xff;
-        if (s->nfcont & (1 << 0)) {
-            nand_setpins(s->nand, 0, 1, (s->nfconf >> 11) & 1, s->nfwp, 0);
-            nand_setio(s->nand, s->nfaddr);
-            nand_setpins(s->nand, 0, 0, (s->nfconf >> 11) & 1, s->nfwp, 0);
+        s->nfaddr = (s->nfaddr >> 8) | (value << 24);
+        if (s->nfcont & S3C_NFCONT_MODE) {
+            nand_setpins(s->nand, 0, 1, s->nfcont & S3C_NFCONT_CE, s->nfwp, 0);
+            nand_setio(s->nand, value & 0xff);
+            nand_setpins(s->nand, 0, 0, s->nfcont & S3C_NFCONT_CE, s->nfwp, 0);
         }
         break;
     case S3C_NFDATA:
-        if (s->nfcont & (1 << 0))
+        if (s->nfcont & S3C_NFCONT_MODE)
             nand_setio(s->nand, ecc_digest(&s->nfecc, value & 0xff));
         break;
     default:
-        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
+        printf("%s: Bad register 0x%lx=%x\n", __FUNCTION__, (unsigned long)addr, value);
     }
 }
 
@@ -162,8 +177,9 @@ static void s3c2440_nand_save(QEMUFile *f, void *opaque)
 {
     struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     qemu_put_be16s(f, &s->nfconf);
+    qemu_put_be16s(f, &s->nfcont);
     qemu_put_8s(f, &s->nfcmd);
-    qemu_put_8s(f, &s->nfaddr);
+    qemu_put_be32s(f, &s->nfaddr);
     qemu_put_be32(f, s->nfwp);
     ecc_put(f, &s->nfecc);
 }
@@ -172,8 +188,9 @@ static int s3c2440_nand_load(QEMUFile *f, void *opaque, int version_id)
 {
     struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     qemu_get_be16s(f, &s->nfconf);
+    qemu_get_be16s(f, &s->nfcont);
     qemu_get_8s(f, &s->nfcmd);
-    qemu_get_8s(f, &s->nfaddr);
+    qemu_get_be32s(f, &s->nfaddr);
     s->nfwp = qemu_get_be32(f);
     ecc_get(f, &s->nfecc);
     return 0;
