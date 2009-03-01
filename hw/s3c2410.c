@@ -2695,8 +2695,13 @@ static void s3c2410_reset(void *opaque)
     cpu_reset(s->env);
 }
 
-/* Initialise an S3C2410A microprocessor.  */
-struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size,
+struct s3c_state_s * g_s3c;
+
+/* Initialise an S3C24XX microprocessor.  */
+struct s3c_state_s *s3c24xx_init(
+		uint32_t cpu_id,
+		unsigned int sdram_size,
+		uint32_t sram_address,
 		SDState *mmc)
 {
     struct s3c_state_s *s;
@@ -2717,7 +2722,7 @@ struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size,
                     qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
 
     /* If OM pins are 00, SRAM is mapped at 0x0 instead.  */
-    cpu_register_physical_memory(S3C_SRAM_BASE, S3C_SRAM_SIZE,
+    cpu_register_physical_memory(sram_address, S3C_SRAM_SIZE,
                     qemu_ram_alloc(S3C_SRAM_SIZE) | IO_MEM_RAM);
 
     s->mc_base = 0x48000000;

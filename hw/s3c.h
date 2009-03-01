@@ -99,7 +99,8 @@
 # define S3C_GP_MAX	S3C_GP(8, 0)
 
 # define S3C_RAM_BASE	0x30000000
-# define S3C_SRAM_BASE	0x40000000
+# define S3C_SRAM_BASE_NORBOOT	0x40000000
+# define S3C_SRAM_BASE_NANDBOOT	0x00000000
 # define S3C_SRAM_SIZE	0x00001000
 
 # define S3C_PCLK_FREQ	66500000	/* Hz */
@@ -226,7 +227,7 @@ struct s3c_state_s {
 };
 
 /* s3c2410.c */
-struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size,
+struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, uint32_t sram_address,
 		SDState *mmc);
 
 
