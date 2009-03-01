@@ -62,7 +62,7 @@ static void mini2440_bl_intensity(int line, int level, void *opaque)
 
     if ((level >> 8) != s->bl_level) {
         s->bl_level = level >> 8;
-        printf("%s: LCD Backlight now at %i/64.\n", __FUNCTION__, s->bl_level);
+     //   printf("%s: LCD Backlight now at %i/64.\n", __FUNCTION__, s->bl_level);
     }
 }
 
