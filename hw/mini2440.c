@@ -133,7 +133,7 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
 //    		s3c_gpio_out_set(s->cpu->io, MINI2440_GPIO_DM9000,
 //	                    *qemu_allocate_irqs(mini2440_bl_switch, s, 1));
 
-			dm9000_init(nd, 0x20000000, 0x300, 0x304, s3c_gpio_in_get(s->cpu->io)[7]);
+			dm9000_init(nd, 0x20000000, 0x300, 0x304, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_DM9000]);
 		}
 	}
 

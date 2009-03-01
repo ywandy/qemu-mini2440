@@ -26,70 +26,91 @@
 #define DM9000_DBF(X...) if(0) fprintf(stderr, X)
 #endif
 
-#define DM9000_REG_NCR 0x00
-#define DM9000_REG_NSR 0x01
-#define DM9000_REG_TCR 0x02
-#define DM9000_REG_TSR1 0x03
-#define DM9000_REG_TSR2 0x04
-#define DM9000_REG_RCR 0x05
-#define DM9000_REG_RSR 0x06
-#define DM9000_REG_ROCR 0x07
-#define DM9000_REG_BPTR 0x08
-#define DM9000_REG_FCTR 0x09
-#define DM9000_REG_FCR 0x0A
-#define DM9000_REG_EPCR 0x0B
-#define DM9000_REG_EPAR 0x0C
-#define DM9000_REG_EPDRL 0x0D
-#define DM9000_REG_EPDRH 0x0E
-#define DM9000_REG_WCR 0x0F
-#define DM9000_REG_PAR0 0x10
-#define DM9000_REG_PAR1 0x11
-#define DM9000_REG_PAR2 0x12
-#define DM9000_REG_PAR3 0x13
-#define DM9000_REG_PAR4 0x14
-#define DM9000_REG_PAR5 0x15
-#define DM9000_REG_MAR0 0x16
-#define DM9000_REG_MAR1 0x17
-#define DM9000_REG_MAR2 0x18
-#define DM9000_REG_MAR3 0x19
-#define DM9000_REG_MAR4 0x1A
-#define DM9000_REG_MAR5 0x1B
-#define DM9000_REG_MAR6 0x1C
-#define DM9000_REG_MAR7 0x1D
-#define DM9000_REG_GPCR 0x1E
-#define DM9000_REG_GPR 0x1F
-#define DM9000_REG_TRPAL 0x22
-#define DM9000_REG_TRPAH 0x23
-#define DM9000_REG_RWPAL 0x24
-#define DM9000_REG_RWPAH 0x25
-#define DM9000_REG_VIDL 0x28
-#define DM9000_REG_VIDH 0x29
-#define DM9000_REG_PIDL 0x2A
-#define DM9000_REG_PIDH 0x2B
-#define DM9000_REG_CHIPR 0x2C
-#define DM9000_REG_SMCR 0x2F
-#define DM9000_REG_MRCMDX 0xF0
-#define DM9000_REG_MRCMD 0xF2
-#define DM9000_REG_MRRL 0xF4
-#define DM9000_REG_MRRH 0xF5
-#define DM9000_REG_MWCMDX 0xF6
-#define DM9000_REG_MWCMD 0xF8
-#define DM9000_REG_MWRL 0xFA
-#define DM9000_REG_MWRH 0xFB
-#define DM9000_REG_TXPLL 0xFC
-#define DM9000_REG_TXPLH 0xFD
-#define DM9000_REG_ISR 0xFE
-#define DM9000_REG_IMR 0xFF
+#define DM9000_REG_NCR 			0x00
+#define DM9000_NCR_RESET 			(1 << 0)
 
-#define DM9000_NCR_RESET 0x01
-#define DM9000_NSR_TX1END 0x04
-#define DM9000_NSR_TX2END 0x08
-#define DM9000_TCR_TXREQ 0x01
+#define DM9000_REG_NSR 			0x01
+#define DM9000_NSR_TX1END 			(1 << 2)
+#define DM9000_NSR_TX2END			(1 << 3)
+#define DM9000_REG_TCR 			0x02
+#define DM9000_TCR_TXREQ 			(1 << 0)
 
-#define DM9000_IMR_AUTOWRAP 0x80
+#define DM9000_REG_TSR1 		0x03
+#define DM9000_REG_TSR2 		0x04
+#define DM9000_REG_RCR 			0x05
+#define DM9000_RCR_DIS_LONG 		(1 << 5)	/* RX Discard long frames (>1522) */
+#define DM9000_RCR_DIS_CRC 			(1 << 4)	/* RX Discard bad CRC */
+#define DM9000_RCR_ALL	 			(1 << 3)	/* RX Pass All Multicast */
+#define DM9000_RCR_RUNT 			(1 << 2)	/* RX Pass Runt Frames (frame < 64 bytes) */
+#define DM9000_RCR_PRMSC 			(1 << 1)	/* RX Promiscuous Mode */
+#define DM9000_RCR_RXEN 			(1 << 0)	/* RX Enabled */
 
-#define DM9000_MII_READ 0x0C
-#define DM9000_MII_WRITE 0x0A
+#define DM9000_REG_RSR 			0x06
+#define DM9000_RSR_RF 				(1 << 7)	/* RX Runt Frame (frame < 64 bytes) */
+#define DM9000_RSR_MF 				(1 << 6)	/* RX Multicast Frame */
+#define DM9000_RSR_FOE 				(1 << 0)	/* RX FIFO overflow */
+
+#define DM9000_REG_ROCR 		0x07
+#define DM9000_REG_BPTR 		0x08
+#define DM9000_REG_FCTR 		0x09
+#define DM9000_REG_FCR 			0x0A
+#define DM9000_FCR_TXP0				(1 << 7)	/* TX Pause Packet (when empty) */
+#define DM9000_FCR_TXPF				(1 << 6)	/* TX Pause Packet (when full) */
+#define DM9000_FCR_TXPEN			(1 << 5)	/* Force pause/unpause packets */
+#define DM9000_FCR_BKPA				(1 << 4)
+#define DM9000_FCR_BKPM				(1 << 3)
+#define DM9000_FCR_RXPS				(1 << 2)	/* RX Pause Packet Status, latch and read to clear */
+#define DM9000_FCR_RXPCS			(1 << 1)	/* RX Pause Packet Current Status */
+#define DM9000_FCR_FLCE				(1 << 0)	/* Flow Control Enable */
+
+#define DM9000_REG_EPCR 		0x0B
+#define DM9000_REG_EPAR 		0x0C
+#define DM9000_REG_EPDRL 		0x0D
+#define DM9000_REG_EPDRH 		0x0E
+#define DM9000_REG_WCR 			0x0F
+#define DM9000_REG_PAR0 		0x10
+#define DM9000_REG_PAR1 		0x11
+#define DM9000_REG_PAR2 		0x12
+#define DM9000_REG_PAR3 		0x13
+#define DM9000_REG_PAR4 		0x14
+#define DM9000_REG_PAR5 		0x15
+#define DM9000_REG_MAR0 		0x16
+#define DM9000_REG_MAR1 		0x17
+#define DM9000_REG_MAR2 		0x18
+#define DM9000_REG_MAR3 		0x19
+#define DM9000_REG_MAR4 		0x1A
+#define DM9000_REG_MAR5 		0x1B
+#define DM9000_REG_MAR6 		0x1C
+#define DM9000_REG_MAR7 		0x1D
+#define DM9000_REG_GPCR 		0x1E
+#define DM9000_REG_GPR 			0x1F
+#define DM9000_REG_TRPAL 		0x22
+#define DM9000_REG_TRPAH 		0x23
+#define DM9000_REG_RWPAL 		0x24
+#define DM9000_REG_RWPAH 		0x25
+#define DM9000_REG_VIDL 		0x28
+#define DM9000_REG_VIDH 		0x29
+#define DM9000_REG_PIDL 		0x2A
+#define DM9000_REG_PIDH 		0x2B
+#define DM9000_REG_CHIPR 		0x2C
+#define DM9000_REG_SMCR 		0x2F
+#define DM9000_REG_MRCMDX 		0xF0
+#define DM9000_REG_MRCMD 		0xF2
+#define DM9000_REG_MRRL 		0xF4
+#define DM9000_REG_MRRH 		0xF5
+#define DM9000_REG_MWCMDX 		0xF6
+#define DM9000_REG_MWCMD 		0xF8
+#define DM9000_REG_MWRL 		0xFA
+#define DM9000_REG_MWRH 		0xFB
+#define DM9000_REG_TXPLL 		0xFC
+#define DM9000_REG_TXPLH 		0xFD
+#define DM9000_REG_ISR 			0xFE
+#define DM9000_REG_IMR 			0xFF
+#define DM9000_IMR_AUTOWRAP 		0x80
+
+
+#define DM9000_MII_READ 		0x0C
+#define DM9000_MII_WRITE 		0x0A
 
 #define DM9000_MII_REG_BMCR 0x00
 #define DM9000_MII_REG_STATUS 0x01
@@ -102,6 +123,21 @@
 #define DM9000_MII_REG_DSCSR 0x11
 #define DM9000_MII_REG_10BTCSR 0x12
 
+enum {
+	DM9K_TX_FIFO_START	= 0,
+	DM9K_TX_FIFO_SIZE	= (3 * 1024),
+
+	DM9K_RX_FIFO_START	= DM9K_TX_FIFO_SIZE,
+	DM9K_RX_FIFO_SIZE	= (13 * 1024),
+
+	DM9K_FIFO_SIZE = (DM9K_TX_FIFO_SIZE + DM9K_RX_FIFO_SIZE)
+};
+
+#define DM9K_WRAP_TX_INDEX(_v) 		((_v >= DM9K_TX_FIFO_SIZE) ? (_v) - DM9K_TX_FIFO_SIZE : (_v))
+#define DM9K_WRAP_RX_INDEX(_v) 		((_v >= DM9K_FIFO_SIZE) ? (_v) - DM9K_RX_FIFO_SIZE : (_v))
+    /* DM9KNOTE: Assumes 16bit wiring */
+#define DM9K_CLIP_TX_INDEX(_v) 		((_v) & 1 ? DM9K_WRAP_TX_INDEX((_v)+1) : (_v))
+#define DM9K_CLIP_RX_INDEX(_v) 		((_v) & 1 ? DM9K_WRAP_RX_INDEX((_v)+1) : (_v))
 
 typedef struct {
     uint32_t addr; /* address port */
@@ -109,13 +145,31 @@ typedef struct {
     VLANClientState *vc;
     qemu_irq irq;
     uint8_t macaddr[6];
-    uint8_t address; /* The internal magial address */
-    uint8_t packet_buffer[16 * 1024];
-    uint16_t dm9k_mrr, dm9k_mwr; /* Read and write address registers */
+    uint8_t mult[8];
+
+    uint8_t address; /* The internal magical address */
+
+    /*
+     * Transmit buffer is the first 3KB,
+     * followed by the receive buffer
+     */
+    uint8_t packet_buffer[DM9K_FIFO_SIZE];
+
+    uint16_t dm9k_trpa;
+    uint16_t dm9k_rwpa; /* TX Read ptr address, RX write ptr address */
+
+	uint8_t fctr, fcr;
+	uint16_t fc_high_mark;
+	uint16_t fc_low_mark;
+
+    uint16_t dm9k_mrr;
+    uint16_t dm9k_mwr; /* Read and write address registers */
     uint16_t dm9k_txpl; /* TX packet length */
-    uint16_t dm9k_trpa, dm9k_rwpa; /* TX Read ptr address, RX write ptr address */
+
     uint8_t dm9k_imr, dm9k_isr; /* Interrupt mask register and status register*/
     uint8_t dm9k_ncr, dm9k_nsr; /* Network control register, network status register */
+    uint8_t dm9k_rcr; /* RX Control Register */
+    uint8_t dm9k_rsr; /* RX Status Register */
     uint8_t dm9k_wcr; /* Wakeup control */
     uint8_t dm9k_tcr; /* Transmission control register */
     uint8_t packet_copy_buffer[3 * 1024]; /* packet copy buffer */
@@ -161,94 +215,130 @@ static void dm9k_dump_packet(uint8_t *buf, uint32_t size)
 #define dm9k_dump_packet(X...) do { } while(0)
 #endif
 
-static void dm9000_raise_irq(dm9000_state *state)
+static void hexdump(const void* address, uint32_t len)
 {
-    int level = ((state->dm9k_isr & state->dm9k_imr) & 0x03) != 0;
-    DM9000_DBF("DM9000: Set IRQ level %d\n", level);
-    qemu_set_irq(state->irq, level);
+    const unsigned char* p = address;
+    int i, j;
+
+    for (i = 0; i < len; i += 16) {
+	for (j = 0; j < 16 && i + j < len; j++)
+	    fprintf(stderr, "%02x ", p[i + j]);
+	for (; j < 16; j++)
+	    fprintf(stderr, "   ");
+	fprintf(stderr, " ");
+	for (j = 0; j < 16 && i + j < len; j++)
+	    fprintf(stderr, "%c", (p[i + j] < ' ' || p[i + j] > 0x7f) ? '.' : p[i + j]);
+	fprintf(stderr, "\n");
+    }
 }
 
-static void dm9000_soft_reset_mii(dm9000_state *state)
+static void dm9000_raise_irq(dm9000_state *s)
 {
-    state->dm9k_mii_bmcr = 0x3100; /* 100Mbps, AUTONEG, FULL DUPLEX */
-    state->dm9k_mii_anar = 0x01E1;
-    state->dm9k_mii_dscr = 0x0410;
+    int level = ((s->dm9k_isr & s->dm9k_imr) & 0x03) != 0;
+  //  DM9000_DBF("DM9000: Set IRQ level %d\n", level);
+    qemu_set_irq(s->irq, level);
 }
 
-static void dm9000_soft_reset(dm9000_state *state)
+static void dm9000_soft_reset_mii(dm9000_state *s)
+{
+    s->dm9k_mii_bmcr = 0x3100; /* 100Mbps, AUTONEG, FULL DUPLEX */
+    s->dm9k_mii_anar = 0x01E1;
+    s->dm9k_mii_dscr = 0x0410;
+}
+
+static void dm9000_soft_reset(dm9000_state *s)
 {
     DM9000_DBF("DM9000: Soft Reset\n");
-    state->dm9k_mrr = state->dm9k_mwr = state->dm9k_txpl = state->dm9k_trpa = 0x0000;
-    state->dm9k_rwpa = 0x0C04;
-    state->dm9k_imr = 0;
-    state->dm9k_isr = 0; /* 16 bit mode, no interrupts asserted */
-    state->dm9k_tcr = 0;
-    state->packet_index = 0;
-    memset(state->packet_buffer, 0, 16*1024);
-    memset(state->packet_copy_buffer, 0, 3*1024);
+    s->dm9k_txpl = 0;
+    s->dm9k_mwr = s->dm9k_trpa = DM9K_TX_FIFO_START;
+    s->dm9k_mrr = s->dm9k_rwpa = DM9K_RX_FIFO_START;
+    s->dm9k_imr = 0;
+    s->dm9k_isr = 0; /* 16 bit mode, no interrupts asserted */
+    s->dm9k_tcr = 0;
+    s->dm9k_rcr = 0;
+    s->dm9k_rsr = 0;
+    s->fcr = 0;
+    s->fctr = (3 << 4) | (8 << 0);	// flow control high/low marks
+    s->fc_high_mark = 3 * 1024;
+    s->fc_low_mark = 8 * 1024;
+
+    s->packet_index = 0;
+    memset(s->packet_buffer, 0, sizeof(s->packet_buffer));
+    memset(s->packet_copy_buffer, 0, sizeof(s->packet_copy_buffer));
     /* These registers have some bits "unaffected by software reset" */
     /* Clear the reset bits */
-    state->dm9k_ncr &= 0xA0;
-    state->dm9k_nsr &= 0xD0;
+    s->dm9k_ncr &= 0xA0;
+    s->dm9k_nsr &= 0xD0;
     /* Claim full duplex */
-    state->dm9k_ncr |= 1<<3;
+    s->dm9k_ncr |= 1<<3;
     /* Set link status to 1 */
-    state->dm9k_nsr |= 1<<6;
+    s->dm9k_nsr |= 1<<6;
     /* dm9k_wcr is unaffected or reserved, never reset */
     /* MII control regs */
-    state->dm9k_epcr = 0x00;
-    state->dm9k_epar = 0x40;
+    s->dm9k_epcr = 0x00;
+    s->dm9k_epar = 0x40;
     /* reset the MII */
-    dm9000_soft_reset_mii(state);
-    dm9000_raise_irq(state); /* Clear any potentially pending IRQ */
+    dm9000_soft_reset_mii(s);
+    dm9000_raise_irq(s); /* Clear any potentially pending IRQ */
 }
 
-static void dm9000_hard_reset(dm9000_state *state)
+static void dm9000_hard_reset(dm9000_state *s)
 {
-    state->dm9k_ncr = 0x00;
-    state->dm9k_nsr = 0x00;
-    state->dm9k_wcr = 0x00;
-    dm9000_soft_reset(state);
+    s->dm9k_ncr = 0x00;
+    s->dm9k_nsr = 0x00;
+    s->dm9k_wcr = 0x00;
+    dm9000_soft_reset(s);
 }
 
-static void dm9000_do_transmit(dm9000_state *state)
-{
-    uint16_t idx, cnt, tptr;
-    idx = state->dm9k_trpa;
-    cnt = state->dm9k_txpl;
-    tptr = 0;
-    if( cnt > 3*1024 ) cnt = 3*1024; /* HARD CAP AT 3KiB */
-    DM9000_DBF("TX_Packet: %d bytes from %04x\n", cnt, idx);
-    while(cnt--) {
-        state->packet_copy_buffer[tptr++] = state->packet_buffer[idx++];
-        if( idx == 0x0C00 ) idx = 0;
-    }
-    /* DM9KNOTE: Assumes 16bit wiring */
-    idx = (idx+1) & ~1; /* Round up to nearest 16bit boundary */
-    if( idx == 0x0C00 ) idx = 0;
-    state->dm9k_trpa = idx;
-    dm9k_dump_packet(state->packet_copy_buffer, state->dm9k_txpl);
-    /* We have the copy buffer, now we do the transmit */
-    qemu_send_packet(state->vc, state->packet_copy_buffer, state->dm9k_txpl);
-    /* Clear the "please xmit" bit */
-    state->dm9k_tcr &= ~DM9000_TCR_TXREQ;
-    /* Set the TXEND bit */
-    state->dm9k_nsr |= 1<<(2+state->packet_index);
-    DM9000_DBF("TX: NSR=%02x PI=%d\n", state->dm9k_nsr, state->packet_index);
-    /* Claim a TX complete IRQ */
-    state->dm9k_isr |= 0x02; /* Packet transmitted latch */
-    /* And flip the next-packet bit */
-    state->packet_index = !state->packet_index;
-    dm9000_raise_irq(state);
+static void dm9000_do_transmit(dm9000_state *s) {
+	uint16_t idx, cnt, tptr;
+	idx = s->dm9k_trpa;
+
+	cnt = s->dm9k_txpl;
+	if (cnt > DM9K_TX_FIFO_SIZE)
+		cnt = DM9K_TX_FIFO_SIZE; /* HARD CAP AT 3KiB */
+
+	tptr = 0;
+	while (cnt--) {
+		s->packet_copy_buffer[tptr++] = s->packet_buffer[idx];
+		idx = DM9K_WRAP_TX_INDEX(idx+1);
+	}
+
+#ifdef DM9000_DEBUG
+	{
+		uint8_t *buf = &s->packet_copy_buffer[6];
+		DM9000_DBF("TX_Packet: %02x:%02x:%02x:%02x:%02x:%02x %d bytes from %04x\n",
+				buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],
+				tptr, idx);
+//		hexdump(s->packet_copy_buffer, tptr);
+	}
+#endif
+
+	s->dm9k_trpa = DM9K_CLIP_TX_INDEX(idx);
+	dm9k_dump_packet(s->packet_copy_buffer, s->dm9k_txpl);
+	/* We have the copy buffer, now we do the transmit */
+	qemu_send_packet(s->vc, s->packet_copy_buffer, s->dm9k_txpl);
+
+	/* Clear the "please xmit" bit */
+	s->dm9k_tcr &= ~DM9000_TCR_TXREQ;
+	/* Set the TXEND bit */
+	s->dm9k_nsr |= 1 << (2 + s->packet_index);
+	DM9000_DBF("TX: NSR=%02x PI=%d\n", s->dm9k_nsr, s->packet_index);
+	/* Claim a TX complete IRQ */
+	s->dm9k_isr |= 0x02; /* Packet transmitted latch */
+	/* And flip the next-packet bit */
+	s->packet_index++;
+
+	dm9000_raise_irq(s);
 }
 
-static void dm9000_mii_read(dm9000_state *state)
+static void dm9000_mii_read(dm9000_state *s)
 {
-    int mii_reg = (state->dm9k_epar) & 0x3f;
+    int mii_reg = (s->dm9k_epar) & 0x3f;
     uint16_t ret = 0;
     switch(mii_reg) {
     case DM9000_MII_REG_BMCR:
-        ret = state->dm9k_mii_bmcr;
+        ret = s->dm9k_mii_bmcr;
         break;
     case DM9000_MII_REG_STATUS:
         ret = 0x782D; /* No 100/T4, Can 100/FD, Can 100/HD, Can 10/FD, Can 10/HD,
@@ -262,7 +352,7 @@ static void dm9000_mii_read(dm9000_state *state)
         ret = 0xB8C0;
         break;
     case DM9000_MII_REG_ANAR:
-        ret = state->dm9k_mii_anar;
+        ret = s->dm9k_mii_anar;
         break;
     case DM9000_MII_REG_ANLPAR:
         ret = 0x0400;
@@ -271,204 +361,237 @@ static void dm9000_mii_read(dm9000_state *state)
         ret = 0x0001;
         break;
     case DM9000_MII_REG_DSCR:
-        ret = state->dm9k_mii_dscr;
+        ret = s->dm9k_mii_dscr;
         break;
     case DM9000_MII_REG_DSCSR:
         ret = 0xF008;
         break;
     case DM9000_MII_REG_10BTCSR:
         ret = 0x7800;
+    default:
+        printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)mii_reg);
     }
-    state->dm9k_epdr = ret;
-    DM9000_DBF("DM9000:MIIPHY: Read of MII reg %d gives %04x\n", mii_reg, state->dm9k_epdr);
+    s->dm9k_epdr = ret;
+ //   DM9000_DBF("DM9000:MIIPHY: Read of MII reg %d gives %04x\n", mii_reg, s->dm9k_epdr);
 }
 
-static void dm9000_mii_write(dm9000_state *state)
+static void dm9000_mii_write(dm9000_state *s)
 {
-    int mii_reg = (state->dm9k_epar) & 0x3f;
-    DM9000_DBF("DM9000:MIIPHY: Write of MII reg %d value %04x\n", mii_reg, state->dm9k_epdr);
+    int mii_reg = (s->dm9k_epar) & 0x3f;
+    DM9000_DBF("DM9000:MIIPHY: Write of MII reg %d value %04x\n", mii_reg, s->dm9k_epdr);
     switch(mii_reg) {
     case DM9000_MII_REG_BMCR:
-        state->dm9k_mii_bmcr = (state->dm9k_epdr &~0x8000);
-        if( state->dm9k_epdr & 0x8000 ) dm9000_soft_reset_mii(state);
+        s->dm9k_mii_bmcr = (s->dm9k_epdr &~0x8000);
+        if( s->dm9k_epdr & 0x8000 ) dm9000_soft_reset_mii(s);
         break;
     case DM9000_MII_REG_ANAR:
-        state->dm9k_mii_anar = state->dm9k_epdr;
+        s->dm9k_mii_anar = s->dm9k_epdr;
         break;
     case DM9000_MII_REG_DSCR:
-        state->dm9k_mii_dscr = state->dm9k_epdr & ~0x0008;
+        s->dm9k_mii_dscr = s->dm9k_epdr & ~0x0008;
         break;
+    default:
+        printf("%s: Bad register 0x%lx=%4x\n", __FUNCTION__, (unsigned long)mii_reg, s->dm9k_epdr);
     }
 }
 
 static void dm9000_write(void *opaque, target_phys_addr_t address,
                              uint32_t value)
 {
-    dm9000_state *state = (dm9000_state *)opaque;
+    dm9000_state *s = (dm9000_state *)opaque;
 #ifdef DM9000_DEBUG
     int suppress_debug = 0;
 #endif
 
-    if (address == state->addr) {
-        if( (value != DM9000_REG_MRCMD) &&
-            (value != DM9000_REG_MWCMD) )
-            DM9000_DBF("DM9000: Address set to 0x%02x\n", value);
-        state->address = value;
+    if (address == s->addr) {
+    //    if( (value != DM9000_REG_MRCMD) && (value != DM9000_REG_MWCMD) )
+    //        DM9000_DBF("DM9000: Address set to 0x%02x\n", value);
+        s->address = value;
         return;
     }
 
-    switch(state->address) {
+    switch(s->address) {
     case DM9000_REG_NCR:
-        state->dm9k_ncr = value & 0xDF;
-        if (state->dm9k_ncr & DM9000_NCR_RESET)
-            dm9000_soft_reset(state);
+        s->dm9k_ncr = value & 0xDF;
+        if (s->dm9k_ncr & DM9000_NCR_RESET)
+            dm9000_soft_reset(s);
         break;
     case DM9000_REG_NSR:
-        state->dm9k_nsr &= ~(value & 0x2C);
+        s->dm9k_nsr &= ~(value & 0x2C);
         break;
     case DM9000_REG_TCR:
-        state->dm9k_tcr = value & 0xFF;
-        if( value & DM9000_TCR_TXREQ ) dm9000_do_transmit(state);
+        s->dm9k_tcr = value & 0xFF;
+        if ( value & DM9000_TCR_TXREQ )
+        	dm9000_do_transmit(s);
         break;
     case DM9000_REG_EPCR:
-        state->dm9k_epcr = value & 0xFF;
+        s->dm9k_epcr = value & 0xFF;
         if( value & DM9000_MII_READ )
-            dm9000_mii_read(state);
+            dm9000_mii_read(s);
         else if( value & DM9000_MII_WRITE )
-            dm9000_mii_write(state);
+            dm9000_mii_write(s);
         break;
+    case DM9000_REG_RCR:
+    	s->dm9k_rcr = value & 0xFF;
+        break;
+
+    case DM9000_REG_BPTR: /* can be ignored */
+    	break;
+
+    case DM9000_REG_FCTR: {/* 0x09 Flow Control Threshold Register */
+    	s->fc_high_mark = ((value >> 4) & 0xf) * 1024;	// emit a pause packet time=0xffff
+    	s->fc_low_mark = ((value) & 0xf) * 1024;		// emit an unpause packet time=0x0000
+    	s->fctr = value;
+    }	break;
+
+    case DM9000_REG_FCR:	/* 0x0a Flow Control Register */
+    	s->fcr = value;
+    	break;
+
     case DM9000_REG_EPAR:
-        state->dm9k_epar = value & 0xFF;
+        s->dm9k_epar = value & 0xFF;
         break;
     case DM9000_REG_EPDRL:
-        state->dm9k_epdr &= 0xFF00;
-        state->dm9k_epdr |= value & 0xFF;
+        s->dm9k_epdr &= 0xFF00;
+        s->dm9k_epdr |= value & 0xFF;
         break;
     case DM9000_REG_EPDRH:
-        state->dm9k_epdr &= 0xFF;
-        state->dm9k_epdr |= (value & 0xFF) << 8;
+        s->dm9k_epdr &= 0xFF;
+        s->dm9k_epdr |= (value & 0xFF) << 8;
         break;
-    case DM9000_REG_PAR0:
-    case DM9000_REG_PAR1:
-    case DM9000_REG_PAR2:
-    case DM9000_REG_PAR3:
-    case DM9000_REG_PAR4:
-    case DM9000_REG_PAR5:
-        state->macaddr[state->address - DM9000_REG_PAR0] = value & 0xFF;
+    case DM9000_REG_PAR0 ... DM9000_REG_PAR5:
+		/* MAC address is set by the QEMU Nic */
+        s->macaddr[s->address - DM9000_REG_PAR0] = value;
         break;
+    case DM9000_REG_MAR0 ... DM9000_REG_MAR7:
+		/* Multicast address is ignored */
+		s->mult[s->address - DM9000_REG_MAR0] = value;
+		break;
+    case DM9000_REG_GPCR:
+    case DM9000_REG_GPR:	/* General purpose reg (GPIOs, LED?) */
+    	break;
+    case DM9000_REG_SMCR:
+    	if (value)
+    		printf("%s: something playing with special mode ? 0x%lx=%x\n", __FUNCTION__, (unsigned long)s->address, value);
+    	break;
     case DM9000_REG_MRRL:
-        state->dm9k_mrr &= 0xFF00;
-        state->dm9k_mrr |= value & 0xFF;
+        s->dm9k_mrr &= 0xFF00;
+        s->dm9k_mrr |= value & 0xFF;
         break;
     case DM9000_REG_MRRH:
-        state->dm9k_mrr &= 0xFF;
-        state->dm9k_mrr |= (value & 0xFF) << 8;
+        s->dm9k_mrr &= 0xFF;
+        s->dm9k_mrr |= (value & 0xFF) << 8;
         break;
     case DM9000_REG_MWCMDX:
     case DM9000_REG_MWCMD:
         /* DM9KNOTE: This assumes a 16bit wide wiring */
-        state->packet_buffer[state->dm9k_mwr] = value & 0xFF;
-        state->packet_buffer[state->dm9k_mwr+1] = (value >> 8) & 0xFF;
-        if( state->address == DM9000_REG_MWCMD ) {
-            state->dm9k_mwr += 2;
-            if( state->dm9k_imr & DM9000_IMR_AUTOWRAP )
-                if( state->dm9k_mwr >= 0x0C00 )
-                    state->dm9k_mwr -= 0x0C00;
-        }
+        s->packet_buffer[s->dm9k_mwr] = value & 0xFF;
+		s->packet_buffer[s->dm9k_mwr + 1] = (value >> 8) & 0xFF;
+		if (s->address == DM9000_REG_MWCMD) {
+			if (s->dm9k_imr & DM9000_IMR_AUTOWRAP)
+				s->dm9k_mwr = DM9K_WRAP_TX_INDEX(s->dm9k_mwr + 2);
+			else if (s->dm9k_mwr + 2 < DM9K_TX_FIFO_SIZE) // clip it
+				s->dm9k_mwr += 2;
+		}
 #ifdef DM9000_DEBUG
         suppress_debug = 1;
 #endif
         break;
     case DM9000_REG_MWRL:
-        state->dm9k_mwr &= 0xFF00;
-        state->dm9k_mwr |= value & 0xFF;
+        s->dm9k_mwr &= 0xFF00;
+        s->dm9k_mwr |= value & 0xFF;
         break;
     case DM9000_REG_MWRH:
-        state->dm9k_mwr &= 0xFF;
-        state->dm9k_mwr |= (value & 0xFF) << 8;
+        s->dm9k_mwr &= 0xFF;
+        s->dm9k_mwr |= (value & 0xFF) << 8;
         break;
     case DM9000_REG_TXPLL:
-        state->dm9k_txpl &= 0xFF00;
-        state->dm9k_txpl |= value & 0xFF;
+        s->dm9k_txpl &= 0xFF00;
+        s->dm9k_txpl |= value & 0xFF;
         break;
     case DM9000_REG_TXPLH:
-        state->dm9k_txpl &= 0xFF;
-        state->dm9k_txpl |= (value & 0xFF) << 8;
+        s->dm9k_txpl &= 0xFF;
+        s->dm9k_txpl |= (value & 0xFF) << 8;
         break;
     case DM9000_REG_ISR:
-        state->dm9k_isr &= ~(value & 0x0F);
-        dm9000_raise_irq(state);
+        s->dm9k_isr &= ~(value & 0x0F);
+        dm9000_raise_irq(s);
         break;
     case DM9000_REG_IMR:
-        if( !(state->dm9k_imr & DM9000_IMR_AUTOWRAP) &&
-            (value & DM9000_IMR_AUTOWRAP) )
-            state->dm9k_mrr = 0x0C00 | (state->dm9k_mrr & 0xFF);
-        state->dm9k_imr = value & 0xFF;
-        dm9000_raise_irq(state);
+        if( !(s->dm9k_imr & DM9000_IMR_AUTOWRAP) && (value & DM9000_IMR_AUTOWRAP) )
+            s->dm9k_mrr = 0x0C00 | (s->dm9k_mrr & 0xFF);
+        s->dm9k_imr = value & 0xFF;
+        dm9000_raise_irq(s);
         break;
+    default:
+        printf("%s: Bad register 0x%lx=%x\n", __FUNCTION__, (unsigned long)s->address, value);
     }
-#ifdef DM9000_DEBUG
-    if(!suppress_debug) DM9000_DBF("DM9000: Write value %04x\n", value);
+#if 0 // def DM9000_DEBUG
+    if(!suppress_debug) DM9000_DBF("DM9000: Write value %02x=%04x\n", s->address, value);
 #endif
 }
 
 static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
 {
-    dm9000_state *state = (dm9000_state *)opaque;
+    dm9000_state *s = (dm9000_state *)opaque;
     uint32_t ret = 0;
 #ifdef DM9000_DEBUG
     int suppress_debug = 0;
 #endif
 
-    if (address == state->addr)
-        return state->address;
-    switch(state->address) {
+    if (address == s->addr)
+        return s->address;
+    switch(s->address) {
     case DM9000_REG_NCR:
-        ret = state->dm9k_ncr;
+        ret = s->dm9k_ncr;
         break;
     case DM9000_REG_NSR:
-        ret = state->dm9k_nsr;
+        ret = s->dm9k_nsr;
         /* Note, TX1END and TX2END are *CLEAR ON READ* */
-        state->dm9k_nsr &= ~(DM9000_NSR_TX1END | DM9000_NSR_TX2END);
+        s->dm9k_nsr &= ~(DM9000_NSR_TX1END | DM9000_NSR_TX2END);
         break;
     case DM9000_REG_TCR:
-        ret = state->dm9k_tcr;
+        ret = s->dm9k_tcr;
         break;
     case DM9000_REG_TSR1:
     case DM9000_REG_TSR2:
         ret = 0x00; /* No error, yay! */
         break;
     case DM9000_REG_EPCR:
-        ret = state->dm9k_epcr;
+        ret = s->dm9k_epcr;
+        break;
+    case DM9000_REG_RCR:
+        ret = s->dm9k_rcr;
+        break;
+    case DM9000_REG_RSR:
+        ret = s->dm9k_rsr;
         break;
     case DM9000_REG_EPAR:
-        ret = state->dm9k_epar;
+        ret = s->dm9k_epar;
         break;
     case DM9000_REG_EPDRL:
-        ret = state->dm9k_epdr & 0xFF;
+        ret = s->dm9k_epdr & 0xFF;
         break;
     case DM9000_REG_EPDRH:
-        ret = (state->dm9k_epdr >> 8) & 0xFF;
+        ret = (s->dm9k_epdr >> 8) & 0xFF;
         break;
-    case DM9000_REG_PAR0:
-    case DM9000_REG_PAR1:
-    case DM9000_REG_PAR2:
-    case DM9000_REG_PAR3:
-    case DM9000_REG_PAR4:
-    case DM9000_REG_PAR5:
-        ret = state->macaddr[state->address - DM9000_REG_PAR0];
+    case DM9000_REG_PAR0...DM9000_REG_PAR5:
+        ret = s->macaddr[s->address - DM9000_REG_PAR0];
         break;
+    case DM9000_REG_MAR0...DM9000_REG_MAR7:
+		/* Multicast address is ignored */
+		break;
     case DM9000_REG_TRPAL:
-        ret = state->dm9k_trpa & 0xFF;
+        ret = s->dm9k_trpa & 0xFF;
         break;
     case DM9000_REG_TRPAH:
-        ret = state->dm9k_trpa >> 8;
+        ret = s->dm9k_trpa >> 8;
         break;
     case DM9000_REG_RWPAL:
-        ret = state->dm9k_rwpa & 0xFF;
+        ret = s->dm9k_rwpa & 0xFF;
         break;
     case DM9000_REG_RWPAH:
-        ret = state->dm9k_rwpa >> 8;
+        ret = s->dm9k_rwpa >> 8;
         break;
     case DM9000_REG_VIDL:
         ret = 0x46;
@@ -488,49 +611,60 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
     case DM9000_REG_MRCMDX:
     case DM9000_REG_MRCMD:
         /* DM9KNOTE: This assumes a 16bit wide wiring */
-        ret = state->packet_buffer[state->dm9k_mrr];
-        ret |= state->packet_buffer[state->dm9k_mrr+1] << 8;
-        if( state->address == DM9000_REG_MRCMD ) {
-            state->dm9k_mrr += 2;
-            if( state->dm9k_mrr >= (16*1024) ) state->dm9k_mrr -= (16*1024);
-            if( state->dm9k_imr & DM9000_IMR_AUTOWRAP )
-                if( state->dm9k_mrr < 0x0C00 )
-                    state->dm9k_mrr += 0x0C00;
-        }
-#ifdef DM9000_DEBUG
-        if (state->address==DM9000_REG_MRCMD)
-            suppress_debug = 1;
+		ret = s->packet_buffer[s->dm9k_mrr];
+		ret |= s->packet_buffer[s->dm9k_mrr + 1] << 8;
+#if 0
+		if (s->dm9k_mrr == s->dm9k_rwpa)
+			printf("(%04x=%04x) ", s->dm9k_mrr, ret);
+		else
+			printf("[%04x=%04x] ", s->dm9k_mrr, ret);
+		fflush(stdout);
 #endif
-        break;
+		if( s->address == DM9000_REG_MRCMD ) {
+			if( s->dm9k_imr & DM9000_IMR_AUTOWRAP )
+				s->dm9k_mrr = DM9K_WRAP_RX_INDEX(s->dm9k_mrr + 2);
+			else if (s->dm9k_mrr + 2 < DM9K_FIFO_SIZE) // clip it
+			    s->dm9k_mrr += 2;
+		} else {
+			// drive read the fifo looking for a 0x01 to indicate a packet is there, so we just return
+			// it a zero if there is nothing to read
+			if (s->dm9k_mrr == s->dm9k_rwpa)
+				ret = 0;
+		}
+#ifdef DM9000_DEBUG
+		if (s->address==DM9000_REG_MRCMD)
+			suppress_debug = 1;
+#endif
+		break;
     case DM9000_REG_MRRL:
-        ret = state->dm9k_mrr & 0xFF;
+        ret = s->dm9k_mrr & 0xFF;
         break;
     case DM9000_REG_MRRH:
-        ret = state->dm9k_mrr >> 8;
+        ret = s->dm9k_mrr >> 8;
         break;
     case DM9000_REG_MWRL:
-        ret = state->dm9k_mwr & 0xFF;
+        ret = s->dm9k_mwr & 0xFF;
         break;
     case DM9000_REG_MWRH:
-        ret = state->dm9k_mwr >> 8;
+        ret = s->dm9k_mwr >> 8;
         break;
     case DM9000_REG_TXPLL:
-        ret = state->dm9k_txpl & 0xFF;
+        ret = s->dm9k_txpl & 0xFF;
         break;
     case DM9000_REG_TXPLH:
-        ret = state->dm9k_txpl >> 8;
+        ret = s->dm9k_txpl >> 8;
         break;
     case DM9000_REG_ISR:
-        ret = state->dm9k_isr;
+        ret = s->dm9k_isr;
         break;
     case DM9000_REG_IMR:
-        ret = state->dm9k_imr;
+        ret = s->dm9k_imr;
         break;
     default:
         ret = 0;
     }
 
-#ifdef DM9000_DEBUG
+#if 0 // def DM9000_DEBUG
     if(!suppress_debug) DM9000_DBF("DM9000: Read gives: %04x\n", ret);
 #endif
     return ret;
@@ -540,48 +674,111 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
 
 static int dm9000_can_receive(void *opaque)
 {
-    dm9000_state *state = (dm9000_state *)opaque;
+    dm9000_state *s = (dm9000_state *)opaque;
     uint16_t rx_space;
-    if( state->dm9k_rwpa < state->dm9k_mrr )
-        rx_space = state->dm9k_mrr - state->dm9k_rwpa;
+    if( s->dm9k_rwpa < s->dm9k_mrr )
+        rx_space = s->dm9k_mrr - s->dm9k_rwpa;
     else
-        rx_space = (13*1024) - (state->dm9k_rwpa - state->dm9k_mrr);
+        rx_space = DM9K_RX_FIFO_SIZE - (s->dm9k_rwpa - s->dm9k_mrr);
     DM9000_DBF("DM9000:RX_Packet: Asked about RX, rwpa=%d mrr=%d => space is %d bytes\n",
-                 state->dm9k_rwpa, state->dm9k_mrr, rx_space);
+                 s->dm9k_rwpa, s->dm9k_mrr, rx_space);
     if (rx_space > 2048) return 1;
     return 0;
 }
 
+#define POLYNOMIAL 0x04c11db6
+
+/* From FreeBSD */
+/* XXX: optimize */
+static int compute_mcast_idx(const uint8_t *ep)
+{
+    uint32_t crc;
+    int carry, i, j;
+    uint8_t b;
+
+    crc = 0xffffffff;
+    for (i = 0; i < 6; i++) {
+        b = *ep++;
+        for (j = 0; j < 8; j++) {
+            carry = ((crc & 0x80000000L) ? 1 : 0) ^ (b & 0x01);
+            crc <<= 1;
+            b >>= 1;
+            if (carry)
+                crc = ((crc ^ POLYNOMIAL) | carry);
+        }
+    }
+    return (crc >> 26);
+}
+
 static void dm9000_receive(void *opaque, const uint8_t *buf, int size)
 {
-    dm9000_state *state = (dm9000_state *)opaque;
-    uint16_t rxptr = state->dm9k_rwpa;
-    uint8_t magic_padding = 4;
-    if( size > 2048 ) return; /* La La La, I can't hear you */
-    /* Fill out the magical header structure */
-    DM9000_DBF("DM9000:RX_Packet: %d bytes into buffer at %04x\n", size, rxptr);
-    dm9k_dump_packet(buf, size);
-    if( size < 64 ) magic_padding += (64 - size);
-    DM9000_DBF("DM9000:RX_Packet: Magical padding is %d bytes\n", magic_padding);
-    size += magic_padding; /* The magical CRC bollocks */
-    state->packet_buffer[state->dm9k_rwpa-4] = 0x01; /* Packet read */
-    state->packet_buffer[state->dm9k_rwpa-3] = 0x00; /* Status OK */
-    state->packet_buffer[state->dm9k_rwpa-2] = size & 0xFF; /* Size LOW */
-    state->packet_buffer[state->dm9k_rwpa-1] = (size & 0xFF00)>>8; /* Size HIGH */
-    size += 4; /* The magical next header (which we zero for fun) */
-    while(size--) {
-        if( size > (magic_padding + 3) )
-            state->packet_buffer[rxptr++] = *buf++;
-        else
-            state->packet_buffer[rxptr++] = 0x00; /* Clear to the next header */
-        /* DM9KNOTE: Assumes 16 bit wired config */
-        if (size == 4) rxptr = (rxptr+1) & ~1; /* At end of packet, realign */
-        if( rxptr >= (16*1024) ) rxptr -= (16*1024);
-        if( rxptr < 0x0C00 ) rxptr += 0x0C00;
+    dm9000_state *s = (dm9000_state *)opaque;
+    uint16_t rxptr = s->dm9k_rwpa, idx;
+    unsigned int mcast_idx = 0;
+    int pad = 0;
+
+    if (!(s->dm9k_rcr & DM9000_RCR_RXEN))
+    	return;
+    s->dm9k_rsr = 0;
+
+    if (!(s->dm9k_rcr & DM9000_RCR_PRMSC)) {
+    	if (buf[0] & 0x01) {
+            /* multi/broadcast */
+            if (!(s->dm9k_rcr & DM9000_RCR_ALL)) {
+            	mcast_idx = compute_mcast_idx(buf);
+            	if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
+            		return;
+                s->dm9k_rsr |= DM9000_RSR_MF;
+            }
+        } else if (!memcmp(buf, s->macaddr, 6)) {
+            /* match */
+        } else {
+            return;
+        }
+        if (size < 64 && !(s->dm9k_rcr & DM9000_RCR_RUNT)) {
+        //    printf("rcr %02x RUNT %d\n", s->dm9k_rcr, size);
+            s->dm9k_rsr |= DM9000_RSR_RF;
+        //	return;
+        }
+        if (size > 1522 && (s->dm9k_rcr & DM9000_RCR_DIS_LONG))
+        	return;
     }
-    state->dm9k_rwpa = rxptr;
-    state->dm9k_isr |= 0x01; /* RX interrupt, yay */
-    dm9000_raise_irq(state);
+
+    DM9000_DBF("DM9000:RX_Packet: %02x:%02x:%02x:%02x:%02x:%02x -> %02x:%02x:%02x:%02x:%02x:%02x : %d bytes into buffer at %04x [RCR %02x]\n",
+    		buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],
+    		buf[6],buf[7],buf[8],buf[9],buf[10],buf[11],
+    		size, rxptr, s->dm9k_rcr);
+    dm9k_dump_packet(buf, size);
+
+    /*
+     * apparently even runt frames are padded to 64
+     */
+    if (size < 64)
+    	pad = 64 - size;
+
+    rxptr = DM9K_CLIP_RX_INDEX(rxptr);
+    /* store header */
+    s->packet_buffer[rxptr] = 0x01; /* Packet read */
+    rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
+    s->packet_buffer[rxptr] = 0x00; /* Status OK */
+    rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
+    s->packet_buffer[rxptr] = (size+pad) & 0xFF; /* Size LOW */
+    rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
+    s->packet_buffer[rxptr] = ((size+pad) >> 8) & 0xff; /* Size HIGH */
+    rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
+
+    for (idx = 0; idx < size; idx++) {
+		s->packet_buffer[rxptr] = *buf++;
+		rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
+	}
+    while (pad--) {
+		s->packet_buffer[rxptr] = 0;
+		rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
+    }
+
+    s->dm9k_rwpa = DM9K_CLIP_RX_INDEX(rxptr);
+    s->dm9k_isr |= 0x01; /* RX interrupt, yay */
+    dm9000_raise_irq(s);
 }
 
 
@@ -605,21 +802,29 @@ void dm9000_init(NICInfo *nd, target_phys_addr_t base_addr,
                  uint32_t addr_offset, uint32_t data_offset,
                  qemu_irq irq)
 {
-    dm9000_state *state;
+    dm9000_state *s;
     int iomemtype;
 
-    state = (dm9000_state *)qemu_mallocz(sizeof(dm9000_state));
+    s = (dm9000_state *)qemu_mallocz(sizeof(dm9000_state));
     iomemtype = cpu_register_io_memory(0, dm9000_readfn,
-                                       dm9000_writefn, state);
+                                       dm9000_writefn, s);
     cpu_register_physical_memory(base_addr, MAX(addr_offset, data_offset) + 4, iomemtype);
-    state->addr = /*base_addr + */addr_offset;
-    state->data = /*base_addr + */data_offset;
-    state->irq = irq;
-    memcpy(state->macaddr, nd->macaddr, 6);
+    s->addr = addr_offset;
+    s->data = data_offset;
+    s->irq = irq;
+    memcpy(s->macaddr, nd->macaddr, 6);
+    memset(s->mult, 0xff, 8);
 
-    dm9000_hard_reset(state);
+    {
+		uint8_t * buf = s->macaddr;
+    	printf("DM9000: INIT QEMU MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
+    		buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
+    }
 
-    state->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-			dm9000_receive, dm9000_can_receive, state);
+    dm9000_hard_reset(s);
+
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+			dm9000_receive, dm9000_can_receive, s);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
 }
