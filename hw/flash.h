@@ -25,6 +25,7 @@ void nand_setpins(struct nand_flash_s *s,
 void nand_getpins(struct nand_flash_s *s, int *rb);
 void nand_setio(struct nand_flash_s *s, uint8_t value);
 uint8_t nand_getio(struct nand_flash_s *s);
+uint32_t nand_readraw(struct nand_flash_s *s, uint32_t offset, void * dst, uint32_t length);
 
 #define NAND_MFR_TOSHIBA	0x98
 #define NAND_MFR_SAMSUNG	0xec

@@ -319,6 +319,22 @@ static int nand_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+uint32_t nand_readraw(struct nand_flash_s *s, uint32_t offset, void * dst, uint32_t length)
+{
+	if (s->bdrv) {
+        if (bdrv_pread(s->bdrv, offset, dst, length) == -1) {
+            printf("%s: read error in offset %i\n", __FUNCTION__, offset);
+            return 0;
+        }
+        return length;
+	}
+	if (s->storage) {
+		memcpy((uint8_t*)dst, s->storage + offset, length);
+		return length;
+	}
+	return 0;
+}
+
 /*
  * Chip inputs are CLE, ALE, CE, WP, GND and eight I/O pins.  Chip
  * outputs are R/B and eight I/O pins.
