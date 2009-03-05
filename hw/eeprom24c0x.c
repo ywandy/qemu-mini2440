@@ -35,7 +35,7 @@
  * Typical device names include Microchip 24C02SC or SGS Thomson ST24C02.
  */
 
-//~ #define DEBUG
+#define DEBUG
 
 #if defined(DEBUG)
 #  define logout(fmt, args...) fprintf(stderr, "24C\t%-24s" fmt, __func__, ##args)
@@ -45,15 +45,15 @@
 
 struct _eeprom24c0x_t {
 	uint8_t kind;
-  uint8_t tick;
-  uint8_t address;
-  uint8_t command;
-  uint8_t ack;
-  uint8_t scl;
-  uint8_t sda;
-  uint8_t data;
-  //~ uint16_t size;
-  uint8_t contents[1024];
+	uint8_t tick;
+	uint8_t address;
+	uint8_t command;
+	uint8_t ack;
+	uint8_t scl;
+	uint8_t sda;
+	uint8_t data;
+	//~ uint16_t size;
+	uint8_t contents[1024];
 };
 
 //typedef struct _eeprom24c0x_t eeprom24c0x_t;
