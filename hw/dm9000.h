@@ -11,7 +11,7 @@
 #ifndef QEMU_HW_DM9000_H
 #define QEMU_HW_DM9000_H
 
-void dm9000_init(NICInfo *nd, target_phys_addr_t base_addr, uint32_t addr_offset, 
+void dm9000_init(NICInfo *nd, target_phys_addr_t base_addr, uint32_t addr_offset,
                  uint32_t data_offset, qemu_irq irq);
 
 #endif

@@ -11,6 +11,7 @@
 #include <string.h>
 #include "qemu-common.h"
 #include "hw/irq.h"
+#include "hw.h"
 #include "net.h"
 #include "dm9000.h"
 
@@ -167,10 +168,10 @@ typedef struct {
     uint32_t data; /* data port */
     VLANClientState *vc;
     qemu_irq irq;
-    uint8_t macaddr[6];
-    uint8_t mult[8];
+    uint8_t macaddr[6];		/* MAC address -- default to qemu, can/will be overridden by guest driver */
+    uint8_t mult[8];		/* multicast filtering fields */
 
-    uint8_t address; /* The internal magical address */
+    uint8_t address; /* The internal magical register address */
 
     /*
      * Transmit buffer is the first 3KB,
@@ -195,7 +196,7 @@ typedef struct {
     uint8_t dm9k_rsr; /* RX Status Register */
     uint8_t dm9k_wcr; /* Wakeup control */
     uint8_t dm9k_tcr; /* Transmission control register */
-    uint8_t packet_copy_buffer[3 * 1024]; /* packet copy buffer */
+    uint8_t packet_copy_buffer[DM9K_TX_FIFO_SIZE]; /* realigned packet copy buffer */
     unsigned int packet_index:1; /* 0 == packet I, 1 == packet II */
 
     /* Internal MII PHY state */
@@ -208,6 +209,78 @@ typedef struct {
     uint16_t dm9k_mii_dscr;
 
 } dm9000_state;
+
+static void dm9000_save(QEMUFile *f, void *opaque)
+{
+    dm9000_state *s = (dm9000_state *)opaque;
+
+    qemu_put_be32s(f, &s->addr);
+    qemu_put_be32s(f, &s->data);
+    qemu_put_8s(f, &s->address);
+    qemu_put_buffer(f, s->macaddr, sizeof(s->macaddr));
+    qemu_put_buffer(f, s->mult, sizeof(s->mult));
+    qemu_put_buffer(f, s->packet_buffer, sizeof(s->packet_buffer));
+    qemu_put_buffer(f, s->packet_copy_buffer, sizeof(s->packet_copy_buffer));
+    qemu_put_be16s(f, &s->dm9k_trpa);
+    qemu_put_be16s(f, &s->dm9k_rwpa);
+    qemu_put_8s(f, &s->fctr);
+    qemu_put_8s(f, &s->fcr);
+    qemu_put_be16s(f, &s->fc_high_mark);
+    qemu_put_be16s(f, &s->fc_low_mark);
+    qemu_put_be16s(f, &s->dm9k_mrr);
+    qemu_put_be16s(f, &s->dm9k_mwr);
+    qemu_put_be16s(f, &s->dm9k_txpl);
+    qemu_put_8s(f, &s->dm9k_imr);
+    qemu_put_8s(f, &s->dm9k_isr);
+    qemu_put_8s(f, &s->dm9k_ncr);
+    qemu_put_8s(f, &s->dm9k_nsr);
+    qemu_put_8s(f, &s->dm9k_rcr);
+    qemu_put_8s(f, &s->dm9k_rsr);
+    qemu_put_8s(f, &s->dm9k_wcr);
+    qemu_put_8s(f, &s->dm9k_tcr);
+    qemu_put_8s(f, &s->dm9k_epcr);
+    qemu_put_8s(f, &s->dm9k_epar);
+    qemu_put_be16s(f, &s->dm9k_epdr);
+    qemu_put_be16s(f, &s->dm9k_mii_bmcr);
+    qemu_put_be16s(f, &s->dm9k_mii_anar);
+    qemu_put_be16s(f, &s->dm9k_mii_dscr);
+}
+
+static int dm9000_load(QEMUFile *f, void *opaque, int version_id)
+{
+    dm9000_state *s = (dm9000_state *)opaque;
+    qemu_get_be32s(f, &s->addr);
+    qemu_get_be32s(f, &s->data);
+    qemu_get_8s(f, &s->address);
+    qemu_get_buffer(f, s->macaddr, sizeof(s->macaddr));
+    qemu_get_buffer(f, s->mult, sizeof(s->mult));
+    qemu_get_buffer(f, s->packet_buffer, sizeof(s->packet_buffer));
+    qemu_get_buffer(f, s->packet_copy_buffer, sizeof(s->packet_copy_buffer));
+    qemu_get_be16s(f, &s->dm9k_trpa);
+    qemu_get_be16s(f, &s->dm9k_rwpa);
+    qemu_get_8s(f, &s->fctr);
+    qemu_get_8s(f, &s->fcr);
+    qemu_get_be16s(f, &s->fc_high_mark);
+    qemu_get_be16s(f, &s->fc_low_mark);
+    qemu_get_be16s(f, &s->dm9k_mrr);
+    qemu_get_be16s(f, &s->dm9k_mwr);
+    qemu_get_be16s(f, &s->dm9k_txpl);
+    qemu_get_8s(f, &s->dm9k_imr);
+    qemu_get_8s(f, &s->dm9k_isr);
+    qemu_get_8s(f, &s->dm9k_ncr);
+    qemu_get_8s(f, &s->dm9k_nsr);
+    qemu_get_8s(f, &s->dm9k_rcr);
+    qemu_get_8s(f, &s->dm9k_rsr);
+    qemu_get_8s(f, &s->dm9k_wcr);
+    qemu_get_8s(f, &s->dm9k_tcr);
+    qemu_get_8s(f, &s->dm9k_epcr);
+    qemu_get_8s(f, &s->dm9k_epar);
+    qemu_get_be16s(f, &s->dm9k_epdr);
+    qemu_get_be16s(f, &s->dm9k_mii_bmcr);
+    qemu_get_be16s(f, &s->dm9k_mii_anar);
+    qemu_get_be16s(f, &s->dm9k_mii_dscr);
+    return 0;
+}
 
 
 #ifdef DM9000_DUMP_FILENAME
@@ -238,22 +311,6 @@ static void dm9k_dump_packet(uint8_t *buf, uint32_t size)
 #define dm9k_dump_packet(X...) do { } while(0)
 #endif
 
-static void hexdump(const void* address, uint32_t len)
-{
-    const unsigned char* p = address;
-    int i, j;
-
-    for (i = 0; i < len; i += 16) {
-	for (j = 0; j < 16 && i + j < len; j++)
-	    fprintf(stderr, "%02x ", p[i + j]);
-	for (; j < 16; j++)
-	    fprintf(stderr, "   ");
-	fprintf(stderr, " ");
-	for (j = 0; j < 16 && i + j < len; j++)
-	    fprintf(stderr, "%c", (p[i + j] < ' ' || p[i + j] > 0x7f) ? '.' : p[i + j]);
-	fprintf(stderr, "\n");
-    }
-}
 
 static void dm9000_raise_irq(dm9000_state *s)
 {
@@ -311,6 +368,16 @@ static void dm9000_hard_reset(dm9000_state *s)
     s->dm9k_nsr = 0x00;
     s->dm9k_wcr = 0x00;
     dm9000_soft_reset(s);
+}
+
+static uint16_t dm9000_get_rx_fifo_fill_state(dm9000_state *s)
+{
+	uint16_t res;
+	if (s->dm9k_mrr > s->dm9k_rwpa)
+		res = (DM9K_FIFO_SIZE-s->dm9k_rwpa) + (s->dm9k_mrr-DM9K_RX_FIFO_START);
+	else
+		res = s->dm9k_rwpa - s->dm9k_mrr;
+	return res;
 }
 
 static void dm9000_do_transmit(dm9000_state *s) {
@@ -603,7 +670,7 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
         ret = s->macaddr[s->address - DM9000_REG_PAR0];
         break;
     case DM9000_REG_MAR0...DM9000_REG_MAR7:
-		/* Multicast address is ignored */
+		ret = s->mult[s->address - DM9000_REG_MAR0];
 		break;
     case DM9000_REG_TRPAL:
         ret = s->dm9k_trpa & 0xFF;
@@ -634,26 +701,20 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
         break;
     case DM9000_REG_MRCMDX:
     case DM9000_REG_MRCMD:
-        /* DM9KNOTE: This assumes a 16bit wide wiring */
-		ret = s->packet_buffer[s->dm9k_mrr];
-		ret |= s->packet_buffer[s->dm9k_mrr + 1] << 8;
-#if 0
+		// drivers read the fifo looking for a 0x01 to indicate a packet is there,
+		// so we just return it a zero if there is nothing to read
 		if (s->dm9k_mrr == s->dm9k_rwpa)
-			printf("(%04x=%04x) ", s->dm9k_mrr, ret);
-		else
-			printf("[%04x=%04x] ", s->dm9k_mrr, ret);
-		fflush(stdout);
-#endif
-		if( s->address == DM9000_REG_MRCMD ) {
-			if( s->dm9k_imr & DM9000_IMR_AUTOWRAP )
-				s->dm9k_mrr = DM9K_WRAP_RX_INDEX(s->dm9k_mrr + 2);
-			else if (s->dm9k_mrr + 2 < DM9K_FIFO_SIZE) // clip it
-			    s->dm9k_mrr += 2;
-		} else {
-			// drive read the fifo looking for a 0x01 to indicate a packet is there, so we just return
-			// it a zero if there is nothing to read
-			if (s->dm9k_mrr == s->dm9k_rwpa)
-				ret = 0;
+			ret = 0;
+		else {
+	        /* DM9KNOTE: This assumes a 16bit wide wiring */
+			ret = s->packet_buffer[s->dm9k_mrr];
+			ret |= s->packet_buffer[s->dm9k_mrr + 1] << 8;
+			if( s->address == DM9000_REG_MRCMD ) {
+				if( s->dm9k_imr & DM9000_IMR_AUTOWRAP )
+					s->dm9k_mrr = DM9K_WRAP_RX_INDEX(s->dm9k_mrr + 2);
+				else if (s->dm9k_mrr + 2 < DM9K_FIFO_SIZE) // clip it
+					s->dm9k_mrr += 2;
+			}
 		}
 #ifdef DM9000_DEBUG
 		if (s->address==DM9000_REG_MRCMD)
@@ -695,22 +756,16 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
 }
 
 
-
 static int dm9000_can_receive(void *opaque)
 {
     dm9000_state *s = (dm9000_state *)opaque;
-    uint16_t rx_space;
-    if( s->dm9k_rwpa < s->dm9k_mrr )
-        rx_space = s->dm9k_mrr - s->dm9k_rwpa;
-    else
-        rx_space = DM9K_RX_FIFO_SIZE - (s->dm9k_rwpa - s->dm9k_mrr);
+    uint16_t rx_space = dm9000_get_rx_fifo_fill_state(s);
     DM9000_DBF("DM9000:RX_Packet: Asked about RX, rwpa=%d mrr=%d => space is %d bytes\n",
                  s->dm9k_rwpa, s->dm9k_mrr, rx_space);
-    if (rx_space > 2048) return 1;
-    return 0;
+    return rx_space > 1522;
 }
 
-#define POLYNOMIAL 0x04c11db6
+#define POLYNOMINAL 0x04c11db6
 
 /* From FreeBSD */
 /* XXX: optimize */
@@ -728,7 +783,7 @@ static int compute_mcast_idx(const uint8_t *ep)
             crc <<= 1;
             b >>= 1;
             if (carry)
-                crc = ((crc ^ POLYNOMIAL) | carry);
+                crc = ((crc ^ POLYNOMINAL) | carry);
         }
     }
     return (crc >> 26);
@@ -737,7 +792,7 @@ static int compute_mcast_idx(const uint8_t *ep)
 static void dm9000_receive(void *opaque, const uint8_t *buf, int size)
 {
     dm9000_state *s = (dm9000_state *)opaque;
-    uint16_t rxptr = s->dm9k_rwpa, idx;
+    uint16_t rxptr = s->dm9k_rwpa;
     unsigned int mcast_idx = 0;
     int pad = 4;
 
@@ -791,10 +846,19 @@ static void dm9000_receive(void *opaque, const uint8_t *buf, int size)
     s->packet_buffer[rxptr] = ((size+pad) >> 8) & 0xff; /* Size HIGH */
     rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
 
-    for (idx = 0; idx < size; idx++) {
-		s->packet_buffer[rxptr] = *buf++;
-		rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
-	}
+    if (DM9K_FIFO_SIZE - rxptr > size) {
+    	memcpy(s->packet_buffer + rxptr, buf, size);
+		rxptr += size;
+    } else {
+    	int p1 = DM9K_FIFO_SIZE - rxptr;
+    	memcpy(s->packet_buffer + rxptr, buf, p1);
+    	buf += p1;
+		rxptr = DM9K_RX_FIFO_START;	/* wrap */
+		p1 = size - p1;	/* remaining */
+    	memcpy(s->packet_buffer + rxptr, buf, p1);
+		rxptr += p1;
+    }
+    /* obligatory padding */
     while (pad--) {
 		s->packet_buffer[rxptr] = 0;
 		rxptr = DM9K_WRAP_RX_INDEX(rxptr+1);
@@ -844,6 +908,8 @@ void dm9000_init(NICInfo *nd, target_phys_addr_t base_addr,
     	printf("DM9000: INIT QEMU MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
     		buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
     }
+
+    register_savevm("dm9000", 0, 0, dm9000_save, dm9000_load, s);
 
     dm9000_hard_reset(s);
 
