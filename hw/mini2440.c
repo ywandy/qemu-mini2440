@@ -79,6 +79,7 @@ static void mini2440_gpio_setup(struct mini2440_board_s *s)
 //	sd_set_cb(s->mmc, 0, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]);
 }
 
+#if 0
 static void hexdump(const void* address, uint32_t len)
 {
     const unsigned char* p = address;
@@ -95,6 +96,7 @@ static void hexdump(const void* address, uint32_t len)
 	fprintf(stderr, "\n");
     }
 }
+#endif
 
 static void mini2440_reset(void *opaque)
 {
@@ -186,6 +188,8 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     /* Setup peripherals */
     mini2440_gpio_setup(s);
 
+  //  s->eeprom = eeprom24c0x_new(EE_24C08);
+
 //    if (usb_enabled)
 //        usb_device_attach(usb_bt_init(local_piconet));
 
@@ -207,8 +211,6 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     arm_load_kernel(s->ram, kernel_filename, kernel_cmdline,
                     initrd_filename, 0x49e, S3C_RAM_BASE);
 #endif
-
-//    dpy_resize(ds, 240, 320);
 
     return s;
 }
@@ -238,5 +240,6 @@ QEMUMachine mini2440_machine = {
     "mini2440",
     "MINI2440 Chinese Samsung SoC dev board (S3C2440A)",
     .init = mini2440_init,
+    .ram_require = (0x04000000 + S3C_SRAM_SIZE) | RAMSIZE_FIXED
 };
 
