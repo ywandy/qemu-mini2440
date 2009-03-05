@@ -538,7 +538,7 @@ static void s3c_clkpwr_save(QEMUFile *f, void *opaque)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
     int i;
-    for (i = 0; i < 6; i ++)
+    for (i = 0; i < 7; i ++)
         qemu_put_be32s(f, &s->clkpwr_regs[i]);
 }
 
@@ -546,7 +546,7 @@ static int s3c_clkpwr_load(QEMUFile *f, void *opaque, int version_id)
 {
     struct s3c_state_s *s = (struct s3c_state_s *) opaque;
     int i;
-    for (i = 0; i < 6; i ++)
+    for (i = 0; i < 7; i ++)
         qemu_get_be32s(f, &s->clkpwr_regs[i]);
     return 0;
 }
@@ -1643,6 +1643,7 @@ static void s3c_adc_write(void *opaque, target_phys_addr_t addr,
 
     case S3C_ADCDLY:
         s->delay = value & 0xffff;
+        break;
 
     default:
         printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
