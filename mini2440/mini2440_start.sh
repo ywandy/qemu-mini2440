@@ -11,7 +11,8 @@ if [ ! -f "$name_nand" ]; then
 	echo $0 : creating NAND empty image : "$name_nand"
 	dd if=/dev/zero of="$name_nand" bs=528 count=131072
 fi
-if [ -f /dev/sdd]; then
+
+if [ -f /dev/sdd ]; then
 	# use a real SD card
 	optional="$optional -sd /dev/sdd"
 elif [ -f "$name_sd" ]; then
@@ -22,7 +23,7 @@ fi
 rm -rf .mini2440_monitor
 
 cmd="$base/../arm-softmmu/qemu-system-arm \
-	-M mini2440 -m 66 \
+	-M mini2440 $* \
 	-semihosting \
 	-serial stdio \
 	-kernel /tftpboot/uImage \
