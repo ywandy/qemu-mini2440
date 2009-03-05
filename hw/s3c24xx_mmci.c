@@ -456,7 +456,7 @@ static void s3c_mmci_cardirq(void *opaque, int line, int level)
 {
     struct s3c_mmci_state_s *s = (struct s3c_mmci_state_s *) opaque;
 
-    printf("%s: level %d (control %04x)\n", __FUNCTION__, level, s->control);
+//    printf("%s: level %d (control %04x)\n", __FUNCTION__, level, s->control);
 
     if (!(s->control & S3C2410_SDICON_SDIOIRQ))					/* RcvIOInt */
         return;
