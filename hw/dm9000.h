@@ -3,6 +3,7 @@
  * DM9000 Ethernet interface
  *
  * Copyright Daniel Silverstone and Vincent Sanders
+ * Copyright Michel Pollet <buserror@gmail.com>
  *
  * This file is under the terms of the GNU General Public
  * License Version 2

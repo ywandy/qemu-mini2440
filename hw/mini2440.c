@@ -1,9 +1,7 @@
 /*
- * Neo1973 mobile telephone platforms emulation.
- * Detailed information at openmoko.org.
+ * mini2440 development board support
  *
- * Copyright (c) 2007 OpenMoko, Inc.
- * Author: Andrzej Zaborowski <andrew@openedhand.com>
+ * Copyright Michel Pollet <buserror@gmail.com>
  *
  * This code is licensed under the GNU GPL v2.
  */

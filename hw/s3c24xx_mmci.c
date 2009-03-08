@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2007 OpenMoko, Inc.
  * Author: Andrzej Zaborowski <andrew@openedhand.com>
+ * With:	Michel Pollet <buserror@gmail.com>
  *
  * This code is licenced under the GNU GPL v2.
  */

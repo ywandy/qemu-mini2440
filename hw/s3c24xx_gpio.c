@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2007 OpenMoko, Inc.
  * Author: Andrzej Zaborowski <andrew@openedhand.com>
+ * With:	Michel Pollet <buserror@gmail.com>
  *
  * This code is licenced under the GNU GPL v2.
  */
@@ -10,7 +11,7 @@
 #include "s3c.h"
 #include "hw.h"
 
-/* S3C2410 : A B C D E F G H  = 8 
+/* S3C2410 : A B C D E F G H  = 8
  * S3C2440 : J = 1 */
 #define S3C_IO_BANKS	8
 
