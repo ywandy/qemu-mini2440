@@ -40,12 +40,112 @@
 struct mini2440_board_s {
     struct s3c_state_s *cpu;
     unsigned int ram;
-    i2c_slave * eeprom;
+    struct ee24c08_s * eeprom;
     const char * kernel;
     SDState * mmc;
     struct nand_flash_s *nand;
     int bl_level;
 };
+
+/*
+ * the 24c08 sits on 4 addresses on the bus, and uses the lower address bits
+ * to address the 256 byte "page" of the eeprom. We thus need to use 4 i2c_slaves
+ * and keep track of which one was used to set the read/write pointer into the data
+ */
+struct ee24c08_s;
+struct ee24c08_slave_s {
+	i2c_slave slave;
+	struct ee24c08_s * eeprom;
+	uint8_t page;
+};
+struct ee24c08_s {
+	// that memory takes 4 addresses
+	struct ee24c08_slave_s * slave[4];
+	uint16_t ptr;
+	uint16_t count;
+	uint8_t data[1024];
+};
+
+static void ee24c08_event(i2c_slave *i2c, enum i2c_event event)
+{
+    struct ee24c08_slave_s *s = (struct ee24c08_slave_s *) i2c;
+
+    s->eeprom->ptr = s->page * 256;
+    s->eeprom->count = 0;
+}
+
+static int ee24c08_tx(i2c_slave *i2c, uint8_t data)
+{
+    struct ee24c08_slave_s *s = (struct ee24c08_slave_s *) i2c;
+    if (s->eeprom->count++ == 0) {
+    	/* first byte is address offset */
+        s->eeprom->ptr = (s->page * 256) + data;
+    } else {
+    	printf("%s: write %04x=%02x\n", __FUNCTION__, s->eeprom->ptr, data);
+    	s->eeprom->data[s->eeprom->ptr] = data;
+        s->eeprom->ptr = (s->eeprom->ptr & ~0xff) | ((s->eeprom->ptr + 1) & 0xff);
+        s->eeprom->count++;
+    }
+    return 0;
+}
+
+static int ee24c08_rx(i2c_slave *i2c)
+{
+    struct ee24c08_slave_s *s = (struct ee24c08_slave_s *) i2c;
+    uint8_t res =  s->eeprom->data[s->eeprom->ptr];
+
+    s->eeprom->ptr = (s->eeprom->ptr & ~0xff) | ((s->eeprom->ptr + 1) & 0xff);
+    s->eeprom->count++;
+    return res;
+}
+
+static void ee24c08_save(QEMUFile *f, void *opaque)
+{
+	struct ee24c08_s *s = (struct ee24c08_s *) opaque;
+	int i;
+
+    qemu_put_be16s(f, &s->ptr);
+    qemu_put_be16s(f, &s->count);
+    qemu_put_buffer(f, s->data, sizeof(s->data));
+
+	for (i = 0; i < 4; i++)
+		i2c_slave_save(f, &s->slave[i]->slave);
+}
+
+static int ee24c08_load(QEMUFile *f, void *opaque, int version_id)
+{
+	struct ee24c08_s *s = (struct ee24c08_s *) opaque;
+	int i;
+
+    qemu_get_be16s(f, &s->ptr);
+    qemu_get_be16s(f, &s->count);
+    qemu_get_buffer(f, s->data, sizeof(s->data));
+
+	for (i = 0; i < 4; i++)
+		i2c_slave_load(f, &s->slave[i]->slave);
+    return 0;
+}
+
+static struct ee24c08_s * ee24c08_init(i2c_bus *bus)
+{
+    struct ee24c08_s *s = (struct ee24c08_s *)
+            qemu_mallocz(sizeof(struct ee24c08_s));
+	int i = 0;
+	memset(s->data, 0xff, sizeof(s->data));
+
+	for (i = 0; i < 4; i++) {
+		struct ee24c08_slave_s * ss = (struct ee24c08_slave_s *)
+			i2c_slave_init(bus, 0x50 + i, sizeof(struct ee24c08_slave_s));
+		ss->slave.event = ee24c08_event;
+		ss->slave.recv = ee24c08_rx;
+		ss->slave.send = ee24c08_tx;
+		ss->page = i;
+		ss->eeprom = s;
+		s->slave[i] = ss;
+	}
+    register_savevm("ee24c08", -1, 0, ee24c08_save, ee24c08_load, s);
+	return s;
+}
 
 
 /* Handlers for output ports */
@@ -60,7 +160,7 @@ static void mini2440_bl_intensity(int line, int level, void *opaque)
 
     if ((level >> 8) != s->bl_level) {
         s->bl_level = level >> 8;
-     //   printf("%s: LCD Backlight now at %i/64.\n", __FUNCTION__, s->bl_level);
+        printf("%s: LCD Backlight now at %04x\n", __FUNCTION__, s->bl_level);
     }
 }
 
@@ -186,7 +286,7 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     /* Setup peripherals */
     mini2440_gpio_setup(s);
 
-  //  s->eeprom = eeprom24c0x_new(EE_24C08);
+	s->eeprom = ee24c08_init(s3c_i2c_bus(s->cpu->i2c));
 
 //    if (usb_enabled)
 //        usb_device_attach(usb_bt_init(local_piconet));
