@@ -73,8 +73,8 @@ static void help(void)
            "    differ\n"
            "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
            "  'size' is the disk image size in kilobytes. Optional suffixes\n"
-           "    'M' (megabyte, 1024 * 1024) and 'G' (gigabyte, 1024 * 1024 * 1024) are"
-           "    supported any @code{k} or @code{K} is ignored\n"
+           "    'M' (megabyte, 1024 * 1024) and 'G' (gigabyte, 1024 * 1024 * 1024) are\n"
+           "    supported any 'k' or 'K' is ignored\n"
            "  'output_filename' is the destination disk image filename\n"
            "  'output_fmt' is the destination format\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
@@ -220,6 +220,7 @@ static int img_create(int argc, char **argv)
     const char *filename;
     const char *base_filename = NULL;
     uint64_t size;
+    double sizef;
     const char *p;
     BlockDriver *drv;
 
@@ -260,13 +261,13 @@ static int img_create(int argc, char **argv)
         if (optind >= argc)
             help();
         p = argv[optind];
-        size = strtoul(p, (char **)&p, 0);
+        sizef = strtod(p, (char **)&p);
         if (*p == 'M') {
-            size *= 1024 * 1024;
+            size = (uint64_t)(sizef * 1024 * 1024);
         } else if (*p == 'G') {
-            size *= 1024 * 1024 * 1024;
+            size = (uint64_t)(sizef * 1024 * 1024 * 1024);
         } else if (*p == 'k' || *p == 'K' || *p == '\0') {
-            size *= 1024;
+            size = (uint64_t)(sizef * 1024);
         } else {
             help();
         }
