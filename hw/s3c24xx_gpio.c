@@ -123,6 +123,12 @@ void s3c_gpio_out_set(struct s3c_gpio_state_s *s, int line, qemu_irq handler)
     s->bank[bank].handler[line] = handler;
 }
 
+void s3c_gpio_set_dat(struct s3c_gpio_state_s *s, int gpio, int level)
+{
+	int bank = gpio >> 5, bit = gpio & 0x1f;
+	s->bank[bank].dat = (s->bank[bank].dat & ~(1 << bit)) | (level ? (1 << bit) : 0);
+}
+
 void s3c_gpio_reset(struct s3c_gpio_state_s *s)
 {
     int i;
@@ -216,6 +222,7 @@ static uint32_t s3c_gpio_read(void *opaque, target_phys_addr_t addr)
     case S3C_GPCON:
         return s->bank[bank].con;
     case S3C_GPDAT:
+       /* printf("%s: read port '%c' = %08x\n", __FUNCTION__, 'A' + bank, s->bank[bank].dat); */
         return s->bank[bank].dat;
     case S3C_GPUP:
         return s->bank[bank].up;
@@ -286,6 +293,7 @@ static void s3c_gpio_write(void *opaque, target_phys_addr_t addr,
     case S3C_GPDAT:
         diff = (s->bank[bank].dat ^ value) & s->bank[bank].mask;
         s->bank[bank].dat = value;
+    /*    printf("%s: write port '%c' = %08x\n", __FUNCTION__, 'A' + bank, s->bank[bank].dat); */
         while ((ln = ffs(diff))) {
             ln --;
             if (s->bank[bank].handler[ln]) {

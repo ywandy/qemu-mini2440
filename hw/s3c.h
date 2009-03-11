@@ -152,6 +152,7 @@ qemu_irq *s3c_gpio_in_get(struct s3c_gpio_state_s *s);
 void s3c_gpio_out_set(struct s3c_gpio_state_s *s, int line, qemu_irq handler);
 void s3c_gpio_setpwrstat(struct s3c_gpio_state_s *s, int stat);
 void s3c_gpio_reset(struct s3c_gpio_state_s *s);
+void s3c_gpio_set_dat(struct s3c_gpio_state_s *s, int gpio, int level);
 
 /* s3c24xx_lcd.c */
 struct s3c_lcd_state_s;
