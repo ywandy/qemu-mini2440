@@ -166,6 +166,11 @@ static void mini2440_bl_intensity(int line, int level, void *opaque)
 
 static void mini2440_gpio_setup(struct mini2440_board_s *s)
 {
+	/* set the "input" pin values */
+	s3c_gpio_set_dat(s->cpu->io, S3C_GPG(13), 1);
+	s3c_gpio_set_dat(s->cpu->io, S3C_GPG(14), 1);
+	s3c_gpio_set_dat(s->cpu->io, S3C_GPG(15), 0);
+
     s3c_gpio_out_set(s->cpu->io, MINI2440_GPIO_BACKLIGHT,
                     *qemu_allocate_irqs(mini2440_bl_switch, s, 1));
 
