@@ -519,7 +519,7 @@ static void s3c_clkpwr_write(void *opaque, target_phys_addr_t addr,
     		break;
     	}
     default:
-        printf("%s: Bad register 0x%lx (cpu %08x)\n", __FUNCTION__, /*(unsigned long)*/addr, s->cpu_id);
+        printf("%s: Bad register 0x%x (cpu %08x)\n", __FUNCTION__, /*(unsigned long)*/addr, s->cpu_id);
     }
 }
 
@@ -1004,7 +1004,6 @@ static void s3c_timers_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_timers_state_s *s = (struct s3c_timers_state_s *) opaque;
     int tm = 0;
-  //    s->base;
 
     switch (addr) {
     case S3C_TCFG0:
@@ -1746,6 +1745,7 @@ struct s3c_i2c_state_s {
     uint8_t status;
     uint8_t data;
     uint8_t addy;
+    uint8_t mmaster;
     int busy;
     int newstart;
 };
@@ -1763,6 +1763,7 @@ static void s3c_i2c_reset(struct s3c_i2c_state_s *s)
     s->status = 0x00;
     s->busy = 0;
     s->newstart = 0;
+    s->mmaster = 0;
 }
 
 static void s3c_i2c_event(i2c_slave *i2c, enum i2c_event event)
@@ -1863,6 +1864,8 @@ static void s3c_master_work(void *opaque)
 #define S3C_IICADD	0x08	/* IIC-Bus Address register */
 #define S3C_IICDS	0x0c	/* IIC-Bus Tx / Rx Data Shift register */
 
+#define S3C2440_IICLC	0x10 /* IIC-Bus multi-master line control register */
+
 static uint32_t s3c_i2c_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c_i2c_state_s *s = (struct s3c_i2c_state_s *) opaque;
@@ -1876,6 +1879,8 @@ static uint32_t s3c_i2c_read(void *opaque, target_phys_addr_t addr)
         return s->addy;
     case S3C_IICDS:
         return s->data;
+    case S3C2440_IICLC:		/* s3c2440 only ! */
+    	return s->mmaster;
     default:
         printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
         break;
@@ -1912,6 +1917,10 @@ static void s3c_i2c_write(void *opaque, target_phys_addr_t addr,
         s->data = value & 0xff;
         break;
 
+    case S3C2440_IICLC:		/* s3c2440 only ! */
+		s->mmaster = value & 0xff;
+		break;
+
     default:
         printf("%s: Bad register 0x%lx\n", __FUNCTION__, (unsigned long)addr);
     }
@@ -1936,11 +1945,11 @@ static void s3c_i2c_save(QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->status);
     qemu_put_8s(f, &s->data);
     qemu_put_8s(f, &s->addy);
+    qemu_put_8s(f, &s->mmaster);
 
     qemu_put_be32(f, s->busy);
     qemu_put_be32(f, s->newstart);
 
-//    i2c_bus_save(f, s->bus);
     i2c_slave_save(f, &s->slave);
 }
 
@@ -1951,11 +1960,11 @@ static int s3c_i2c_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->status);
     qemu_get_8s(f, &s->data);
     qemu_get_8s(f, &s->addy);
+    qemu_get_8s(f, &s->mmaster);
 
     s->busy = qemu_get_be32(f);
     s->newstart = qemu_get_be32(f);
 
-//    i2c_bus_load(f, s->bus);
     i2c_slave_load(f, &s->slave);
     return 0;
 }
@@ -2690,7 +2699,6 @@ static void s3c2410_reset(void *opaque)
     s3c_udc_reset(s->udc);
     s3c_wdt_reset(s->wdt);
     s3c_clkpwr_reset(s);
- //   s3c_nand_reset(s);
     s->nand->reset(s->nand);
     for (i = 0; s3c2410_uart[i].base; i ++)
         s3c_uart_reset(s->uart[i]);
@@ -2795,7 +2803,6 @@ struct s3c_state_s *s3c24xx_init(
     qemu_register_reset(s3c2410_reset, s);
 
     s->nand->setwp(s->nand, 1);
-    //s3c_nand_setwp(s, 1);
 
     /* Power on reset */
     s3c_gpio_setpwrstat(s->io, 1);
