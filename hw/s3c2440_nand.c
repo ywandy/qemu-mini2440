@@ -85,14 +85,14 @@ static void s3c2440_nand_reset(void * opaque)
     ecc_reset(&s->nfsecc);
 }
 
+static uint8_t dbu[16],cmd;
+
 static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
 {
     struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     int rb, shr = 0;
     if (!s->nand)
         return 0;
-
-//    printf("%08x - %s: %02x\n", g_s3c->env->regs[15], __FUNCTION__, (unsigned long)addr);fflush(stdout);
 
     switch (addr) {
     case S3C_NFCONF:
@@ -105,9 +105,20 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
         return s->nfaddr >> 24; // last 8 bits poked
     case S3C_NFDATA:
         if (s->nfcont & S3C_NFCONT_MODE) {
-            uint32_t r1 = nand_getio(s->nand);
-            uint32_t res = ecc_digest(&s->nfecc, r1);
-            return res;
+            uint32_t value = nand_getio(s->nand);
+
+        	if (s->nfaddr_cur < 512) {
+        		if (!(s->nfcont & S3C_NFCONT_MECCL)) {
+        			value = ecc_digest(&s->nfecc, value & 0xff);
+        		/*	printf("ecc %02x -> %08x %08x cp %08x cnt %d\n", value, s->nfecc.lp[0], s->nfecc.lp[1], s->nfecc.cp, s->nfecc.count); */
+        		}
+        	} else {
+        		if (!(s->nfcont & S3C_NFCONT_SECCL))
+        			value = ecc_digest(&s->nfsecc, value & 0xff);
+        	}
+        	if (s->nfaddr_cur < 16) dbu[s->nfaddr_cur] = value;
+        	s->nfaddr_cur++;
+            return value;
         }
         break;
     case S3C_NFSTAT:
@@ -118,14 +129,14 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
     case S3C_NFMECCD0 + 1: shr += 8;
     case S3C_NFMECCD0: {
 #define ECC(shr, b, shl)	((s->nfecc.lp[b] << (shl - shr)) & (1 << shl))
-        uint32 ecc = (~(
+        uint32 ecc = ~(
             ECC(0, 1, 0)	| ECC(0, 0, 1)	| ECC(1, 1, 2)	| ECC(1, 0, 3)	| ECC(2, 1, 4)	| ECC(2, 0, 5)	| ECC(3, 1, 6)	| ECC(3, 0, 7)	|
             ECC(4, 1, 8)	| ECC(4, 0, 9)	| ECC(5, 1, 10)	| ECC(5, 0, 11)	| ECC(6, 1, 12)	| ECC(6, 0, 13)	| ECC(7, 1, 14)	| ECC(7, 0, 15)	|
             ECC(8, 1, 16)	| ECC(8, 0, 17)	| ((s->nfecc.cp & 0x3f) << 18) |
             ECC(9, 1, 28)	| ECC(9, 0, 29)	| ECC(10, 1, 30)	| ECC(10, 0, 31)
-            ) >> shr) &
-            0xff;
-        printf("Read ECC %08x\n", ecc);
+            );
+      /*  printf("Read ECC %02x = %08x >> %d [ 0: %08x 1: %08x cnt %d ]\n", addr, ecc, shr, s->nfecc.lp[0], s->nfecc.lp[1], s->nfecc.count); */
+		ecc = (ecc >> shr) & 0xff;
         return ecc;
     }	break;
     case S3C_NFMECCD1 + 3:
@@ -163,6 +174,28 @@ static uint32_t s3c2440_nand_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
+/*
+ * 16 and 32 bits access to NFDATA. u-boot uses the 16 bits acess, and the kernel uses
+ * the 32 bits one extensively.
+ */
+static uint32_t s3c2440_nand_read16(void *opaque, target_phys_addr_t addr)
+{
+	uint32_t res = s3c2440_nand_read(opaque, addr);
+	if (addr == S3C_NFDATA)
+		res = (s3c2440_nand_read(opaque, addr) << 8) | (res & 0xff);
+	return res;
+}
+
+static uint32_t s3c2440_nand_read32(void *opaque, target_phys_addr_t addr)
+{
+	uint32_t res = s3c2440_nand_read16(opaque, addr);
+
+    if (addr == S3C_NFDATA) {
+		res = (s3c2440_nand_read16(opaque, addr) << 16) | (res & 0xffff);
+    }
+	return res;
+}
+
 static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
@@ -170,16 +203,18 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
     if (!s->nand)
         return;
 
-    //printf("%08x - %s: %02x = %lx\n", g_s3c->env->regs[15], __FUNCTION__, (unsigned long)addr, value);fflush(stdout);
+    static int did_write =0;
 
     switch (addr) {
     case S3C_NFCONF:
         s->nfconf = (s->nfconf & 0xe) | (value & 0xfff1);
         break;
     case S3C_NFCONT:
-        if (value & S3C_NFCONT_MODE)
+        if (value & S3C_NFCONT_INITECC) {
             ecc_reset(&s->nfecc);
-        // tight lock is sticky
+            ecc_reset(&s->nfsecc);
+        }
+        /* tight lock is sticky */
         s->nfcont = (value & (0xffff ^ S3C_NFCONT_INITECC)) | (s->nfcont & S3C_NFCONT_TLOCK);
 		break;
     case S3C_NFCMD:
@@ -193,7 +228,19 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
     case S3C_NFSTAT:	// it's OK to write to this on the 2440
 		break;
     case S3C_NFADDR:
-        s->nfaddr_cur = s->nfaddr = (s->nfaddr >> 8) | (value << 24);
+#if 0
+    	if (s->nfaddr_cur) {
+    		int i;
+    		printf("%08x cmd %02x : %s %d bytes : ", s->nfaddr<<1, cmd, did_write ? "wrote" : "read", s->nfaddr_cur);
+    		for (i=0; i < 16 && i < s->nfaddr_cur; i++) printf("%02x ", dbu[i]);
+    		printf("\n");
+    	}
+    	did_write = 0;
+    	cmd = s->nfcmd;
+#endif
+
+        s->nfaddr = (s->nfaddr >> 8) | (value << 24);
+        s->nfaddr_cur = 0;
         if (s->nfcont & S3C_NFCONT_MODE) {
             nand_setpins(s->nand, 0, 1, s->nfcont & S3C_NFCONT_CE, s->nfwp, 0);
             nand_setio(s->nand, value & 0xff);
@@ -209,9 +256,18 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
         			break;
         		}
         	}
+        	if (s->nfaddr_cur < 512) {
+        		if (!(s->nfcont & S3C_NFCONT_MECCL)) {
+        			value = ecc_digest(&s->nfecc, value & 0xff);
+        		/*	printf("ecc %02x -> %08x %08x cp %08x cnt %d\n", value, s->nfecc.lp[0], s->nfecc.lp[1], s->nfecc.cp, s->nfecc.count); */
+        		}
+        	} else {
+        		if (!(s->nfcont & S3C_NFCONT_SECCL))
+        			value = ecc_digest(&s->nfsecc, value & 0xff);
+        	}
+        	did_write=1;
+        	if (s->nfaddr_cur < 16) dbu[s->nfaddr_cur] = value;
         	s->nfaddr_cur++;
-        	if (!(s->nfcont & S3C_NFCONT_MECCL))
-        		value = ecc_digest(&s->nfecc, value & 0xff);
             nand_setio(s->nand, value & 0xff);
         }
         break;
@@ -229,6 +285,28 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
+/*
+ * 16 and 32 bits access to NFDATA. u-boot uses the 16 bits acess, and the kernel uses
+ * the 32 bits one extensively.
+ */
+static void s3c2440_nand_write16(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+	s3c2440_nand_write(opaque, addr, value);
+	if (addr == S3C_NFDATA) {
+		s3c2440_nand_write(opaque, addr, value >> 8);
+	}
+}
+
+static void s3c2440_nand_write32(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+	s3c2440_nand_write16(opaque, addr, value);
+	if (addr == S3C_NFDATA) {
+		s3c2440_nand_write16(opaque, addr, value >> 16);
+	}
+}
+
 static void s3c2440_nand_register(void * opaque, struct nand_flash_s *chip)
 {
     struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
@@ -243,14 +321,14 @@ static void s3c2440_nand_setwp(void * opaque, int wp)
 
 static CPUReadMemoryFunc *s3c2440_nand_readfn[] = {
     s3c2440_nand_read,
-    s3c2440_nand_read,
-    s3c2440_nand_read,
+    s3c2440_nand_read16,
+    s3c2440_nand_read32,
 };
 
 static CPUWriteMemoryFunc *s3c2440_nand_writefn[] = {
     s3c2440_nand_write,
-    s3c2440_nand_write,
-    s3c2440_nand_write,
+    s3c2440_nand_write16,
+    s3c2440_nand_write32,
 };
 
 static void s3c2440_nand_save(QEMUFile *f, void *opaque)
