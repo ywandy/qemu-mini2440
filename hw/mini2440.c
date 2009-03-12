@@ -59,7 +59,7 @@ struct ee24c08_slave_s {
 	uint8_t page;
 };
 struct ee24c08_s {
-	// that memory takes 4 addresses
+	/* that memory takes 4 addresses */
 	struct ee24c08_slave_s * slave[4];
 	uint16_t ptr;
 	uint16_t count;
@@ -176,10 +176,11 @@ static void mini2440_gpio_setup(struct mini2440_board_s *s)
 
     s3c_timers_cmp_handler_set(s->cpu->timers, 1, mini2440_bl_intensity, s);
 
-    // this confuses the kernel, we will need a way to bridge this IRQ to the SD system
-    // right now without this, qemu will not know how to pass the SD card insert/remove
-    // properly to the kernel
-//	sd_set_cb(s->mmc, 0, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]);
+    /* this confuses the kernel, we will need a way to bridge this IRQ to the SD system
+     * right now without this, qemu will not know how to pass the SD card insert/remove
+     * properly to the kernel
+ 	sd_set_cb(s->mmc, 0, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]);
+ 	 */
 }
 
 #if 0
@@ -214,7 +215,7 @@ static void mini2440_reset(void *opaque)
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
 	        fprintf(stderr, "%s: loaded default u-boot (size %x)\n", __FUNCTION__, image_size);
-		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	// start address, u-boot already relocated
+		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	/* start address, u-boot already relocated */
 	   	}
 	}
 #if 0
@@ -235,7 +236,7 @@ static void mini2440_reset(void *opaque)
 	      		fprintf(stderr, "%s: failed to load nand %d:%d\n", __FUNCTION__, src, 512+16);
 	    	}
 		cpu_physical_memory_write(S3C_SRAM_BASE_NANDBOOT, stone, S3C_SRAM_SIZE);
-	    s->cpu->env->regs[15] = S3C_SRAM_BASE_NANDBOOT;	// start address, u-boot relocating code
+	    s->cpu->env->regs[15] = S3C_SRAM_BASE_NANDBOOT;	/* start address, u-boot relocating code */
 	    fprintf(stderr, "%s: 4KB SteppingStone loaded from NAND\n", __FUNCTION__);
     }
 #endif
@@ -293,9 +294,6 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
 
 	s->eeprom = ee24c08_init(s3c_i2c_bus(s->cpu->i2c));
 
-//    if (usb_enabled)
-//        usb_device_attach(usb_bt_init(local_piconet));
-
 	{
 		NICInfo* nd;
 		nd = &nd_table[0];
@@ -333,7 +331,7 @@ static void mini2440_init(ram_addr_t ram_size, int vga_ram_size,
     mini = mini2440_init_common(ram_size,
                     kernel_filename, cpu_model, sd);
 
-	mini->nand = nand_init(NAND_MFR_SAMSUNG, 0x36);
+	mini->nand = nand_init(NAND_MFR_SAMSUNG, 0x76);
     mini->cpu->nand->reg(mini->cpu->nand, mini->nand);
 
     mini2440_reset(mini);
