@@ -26,8 +26,6 @@ typedef struct BlockDriverInfo {
     int cluster_size;
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
-    int64_t highest_alloc; /* highest allocated block offset (in bytes) */
-    int64_t num_free_bytes; /* below highest_alloc  */
 } BlockDriverInfo;
 
 typedef struct QEMUSnapshotInfo {
@@ -102,6 +100,14 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
                                  const uint8_t *buf, int nb_sectors,
                                  BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
+
+/* sg packet commands */
+int bdrv_sg_send_command(BlockDriverState *bs, void *buf, int count);
+int bdrv_sg_recv_response(BlockDriverState *bs, void *buf, int count);
+BlockDriverAIOCB *bdrv_sg_aio_read(BlockDriverState *bs, void *buf, int count,
+                                   BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_sg_aio_write(BlockDriverState *bs, void *buf, int count,
+                                    BlockDriverCompletionFunc *cb, void *opaque);
 
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
