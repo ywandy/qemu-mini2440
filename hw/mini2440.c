@@ -202,61 +202,72 @@ static void hexdump(const void* address, uint32_t len)
 }
 #endif
 
+static int mini2440_load_from_nand(struct nand_flash_s *nand,
+		uint32_t nand_offset, uint32_t s3c_base_offset, uint32_t size)
+{
+	uint8_t buffer[512];
+	uint32_t src = 0;
+	int page = 0;
+	uint32_t dst = 0;
+
+	if (!nand)
+		return 0;
+
+	for (page = 0; page < (size / 512); page++, src += 512 + 16, dst += 512)
+		if (nand_readraw(nand, nand_offset + src, buffer, 512) == 0) {
+			fprintf(stderr, "%s: failed to load nand %d:%d\n", __FUNCTION__,
+			        nand_offset + src, 512 + 16);
+			return 0;
+		} else
+			cpu_physical_memory_write(s3c_base_offset + dst, buffer, 512);
+	return (int) size;
+}
+
 static void mini2440_reset(void *opaque)
 {
     struct mini2440_board_s *s = (struct mini2440_board_s *) opaque;
     uint32_t image_size;
 
-	if (1) {
+	/*
+	 * Normally we would load 4 KB of nand to SRAM and jump there, but
+	 * it is not working perfectly as expected, so we cheat and load
+	 * it from nand directly relocated to 0x33f80000 and jump there
+	 */
+	if (mini2440_load_from_nand(s->nand, 0, S3C_RAM_BASE | 0x03f80000, 256*1024)> 0) {
+		fprintf(stderr, "%s: loaded default u-boot from NAND\n", __FUNCTION__);
+		s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000; /* start address, u-boot already relocated */
+	}
+#if 0 && defined(LATER)
+	if (mini2440_load_from_nand(s->nand, 0, S3C_SRAM_BASE_NANDBOOT, S3C_SRAM_SIZE) > 0) {
+	    s->cpu->env->regs[15] = S3C_SRAM_BASE_NANDBOOT;	/* start address, u-boot relocating code */
+	    fprintf(stderr, "%s: 4KB SteppingStone loaded from NAND\n", __FUNCTION__);
+	}
+#endif
+	/*
+	 * if a u--boot is available as a file, we always use it
+	 */
+	{
 	    image_size = load_image("mini2440/u-boot.bin", phys_ram_base + 0x03f80000);
-	    if (!image_size)
+	    if (image_size < 0)
 		    image_size = load_image("u-boot.bin", phys_ram_base + 0x03f80000);
-	   	if (image_size) {
+	   	if (image_size > 0) {
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
-	        fprintf(stderr, "%s: loaded default u-boot (size %x)\n", __FUNCTION__, image_size);
+	        fprintf(stderr, "%s: loaded override u-boot (size %x)\n", __FUNCTION__, image_size);
 		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	/* start address, u-boot already relocated */
 	   	}
 	}
-#if 0
-    /*
-     * Performs Samsung S3C2440 bootup, but loading 4KB of the nand at the base of the RAM
-     * and jumping there
-     */
-    if (s->nand) {
-    	uint32_t src = 0;
-	    int page = 0;
-	    uint8_t stone[S3C_SRAM_SIZE];
-	    uint8_t * dst = stone;
-
-	    fprintf(stderr, "%s: attempting boot from NAND\n", __FUNCTION__);
-
-	    for (page = 0; page < (S3C_SRAM_SIZE / 512); page++, src += 512+16, dst += 512)
-	    	if (nand_readraw(s->nand, src, dst, 512) == 0) {
-	      		fprintf(stderr, "%s: failed to load nand %d:%d\n", __FUNCTION__, src, 512+16);
-	    	}
-		cpu_physical_memory_write(S3C_SRAM_BASE_NANDBOOT, stone, S3C_SRAM_SIZE);
-	    s->cpu->env->regs[15] = S3C_SRAM_BASE_NANDBOOT;	/* start address, u-boot relocating code */
-	    fprintf(stderr, "%s: 4KB SteppingStone loaded from NAND\n", __FUNCTION__);
-    }
-#endif
-	if (1) {
+	/*
+	 * if a kernel was explicitly specified, we load it too
+	 */
+	if (s->kernel) {
 	   	image_size = load_image(s->kernel, phys_ram_base + 0x02000000);
-	   	if (image_size) {
+	   	if (image_size > 0) {
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
 	        fprintf(stderr, "%s: loaded %s (size %x)\n", __FUNCTION__, s->kernel, image_size);
 	    }
 	}
-	if (0) {
-	   	image_size = load_image("/tftpboot/minimalist-image-mini2440.jffs2", phys_ram_base);
-	   	if (image_size) {
-	   		if (image_size & (512 -1))	/* round size to a NAND block size */
-	   			image_size = (image_size + 512) & ~(512-1);
-	        fprintf(stderr, "%s: loaded jffs2 (size %x)\n", __FUNCTION__, image_size);
-	    }
-	}
-
 }
 
 /* Typical touchscreen calibration values */
