@@ -2914,8 +2914,6 @@ static void dumb_display_init(void)
 /***********************************************************/
 /* I/O handling */
 
-#define MAX_IO_HANDLERS 64
-
 typedef struct IOHandlerRecord {
     int fd;
     IOCanRWHandler *fd_read_poll;
@@ -5517,6 +5515,7 @@ int main(int argc, char **argv, char **envp)
     cpu_exec_init_all(tb_size * 1024 * 1024);
 
     bdrv_init();
+    dma_helper_init();
 
     /* we always create the cdrom drive, even if no disk is there */
 
