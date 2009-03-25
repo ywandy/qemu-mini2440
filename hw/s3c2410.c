@@ -1110,7 +1110,7 @@ static void s3c_timers_save(QEMUFile *f, void *opaque)
         qemu_put_be32(f, s->timer[i].running);
         qemu_put_be32s(f, &s->timer[i].divider);
         qemu_put_be16(f, s3c_timers_get(s, i));
-        qemu_put_be64s(f, &s->timer[i].reload);
+        qemu_put_sbe64s(f, &s->timer[i].reload);
     }
 
     for (i = 0; i < 4; i ++)
@@ -1131,7 +1131,7 @@ static int s3c_timers_load(QEMUFile *f, void *opaque, int version_id)
         running[i] = qemu_get_be32(f);
         qemu_get_be32s(f, &s->timer[i].divider);
         qemu_get_be16s(f, &s->timer[i].count);
-        qemu_get_be64s(f, &s->timer[i].reload);
+        qemu_get_sbe64s(f, &s->timer[i].reload);
     }
 
     for (i = 0; i < 4; i ++)
@@ -1419,7 +1419,7 @@ static void s3c_uart_write(void *opaque, target_phys_addr_t addr,
 {
     struct s3c_uart_state_s *s = (struct s3c_uart_state_s *) opaque;
     uint8_t ch;
-    int i, afc;
+    int i;
 
     switch (addr) {
     case S3C_ULCON:
@@ -1447,7 +1447,7 @@ static void s3c_uart_write(void *opaque, target_phys_addr_t addr,
     case S3C_UMCON:
 #ifdef CONFIG_S3C_MODEM		/* not handled, openmoko modem.c not imported */
         if ((s->mcontrol ^ value) & (1 << 4)) {
-            afc = (value >> 4) & 1;
+            int afc = (value >> 4) & 1;
             for (i = 0; i < s->chr_num; i ++)
                 qemu_chr_ioctl(s->chr[i], CHR_IOCTL_MODEM_HANDSHAKE, &afc);
         }
@@ -1716,8 +1716,8 @@ static void s3c_adc_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->control);
     qemu_put_be16s(f, &s->ts);
     qemu_put_be16s(f, &s->delay);
-    qemu_put_be16s(f, &s->xdata);
-    qemu_put_be16s(f, &s->ydata);
+    qemu_put_sbe16s(f, &s->xdata);
+    qemu_put_sbe16s(f, &s->ydata);
 }
 
 static int s3c_adc_load(QEMUFile *f, void *opaque, int version_id)
@@ -1733,8 +1733,8 @@ static int s3c_adc_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->control);
     qemu_get_be16s(f, &s->ts);
     qemu_get_be16s(f, &s->delay);
-    qemu_get_be16s(f, &s->xdata);
-    qemu_get_be16s(f, &s->ydata);
+    qemu_get_sbe16s(f, &s->xdata);
+    qemu_get_sbe16s(f, &s->ydata);
 
     if (s->enable && (s->ts & 7) && !(s->control & (1 << 15)))
         s3c_adc_start(s);
@@ -2660,7 +2660,7 @@ static void s3c_wdt_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->control);
     qemu_put_be16s(f, &s->data);
     qemu_put_be16s(f, &s->count);
-    qemu_put_be64s(f, &s->timestamp);
+    qemu_put_sbe64s(f, &s->timestamp);
 }
 
 static int s3c_wdt_load(QEMUFile *f, void *opaque, int version_id)
@@ -2670,7 +2670,7 @@ static int s3c_wdt_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->control);
     qemu_get_be16s(f, &s->data);
     qemu_get_be16s(f, &s->count);
-    qemu_get_be64s(f, &s->timestamp);
+    qemu_get_sbe64s(f, &s->timestamp);
     s3c_wdt_start(s);
 
     return 0;
