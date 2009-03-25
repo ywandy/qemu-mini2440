@@ -25,17 +25,20 @@
 #define mini2440_printf(format, ...)	\
     fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
 
-/* Wiring common to all revisions */
-#define MINI2440_GPIO_BACKLIGHT	S3C_GPB(1)
-#define MINI2440_GPIO_LCD_RESET	S3C_GPC(6)
+#define MINI2440_GPIO_BACKLIGHT		S3C_GPG(4)
+#define MINI2440_GPIO_LCD_RESET		S3C_GPC(6)
 #define MINI2440_GPIO_nSD_DETECT	S3C_GPG(8)
-#define MINI2440_IRQ_nSD_DETECT	S3C_EINT(16)
-#define MINI2440_IRQ_DM9000		S3C_EINT(7)
+#define MINI2440_GPIO_WP_SD			S3C_GPH(8)
 #define MINI2440_GPIO_DM9000		S3C_GPF(7)
+#define MINI2440_GPIO_USB_PULLUP	S3C_GPC(5)
 
-#define MINI2440_GPIO_SDMMC_ON	S3C_GPB(2)
-#define MINI2440_GPIO_USB_PULLUP	S3C_GPB(9)
+#define MINI2440_IRQ_nSD_DETECT		S3C_EINT(16)
+#define MINI2440_IRQ_DM9000			S3C_EINT(7)
+
+/*
+#define MINI2440_GPIO_SDMMC_ON		S3C_GPB(2)
 #define MINI2440_GPIO_USB_ATTACH	S3C_GPB(10)
+*/
 
 struct mini2440_board_s {
     struct s3c_state_s *cpu;
