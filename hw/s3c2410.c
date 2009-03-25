@@ -450,6 +450,41 @@ static int s3c_mc_load(QEMUFile *f, void *opaque, int version_id)
 
 #define S3C2440_CAMDIVN	0x18	/* Camera Clock Divider register */
 
+static void s3c_clkpwr_update(struct s3c_state_s *s)
+{
+	uint32_t mpll = s->clkpwr_regs[S3C_MPLLCON >> 2],
+			 ratio = s->clkpwr_regs[S3C_CLKDIVN >> 2];
+	uint32_t mdiv = (mpll >> 12) & 0xff,
+			pdiv = (mpll >> 4) & 0x3f,
+			sdiv = (mpll) & 0x3;
+
+	s->clock.clk = ((mdiv + 8) * s->clock.xtal * 2) /
+						((pdiv + 2) * (1 << sdiv));
+
+	switch( (ratio & 0x6) >> 1 ) {
+		case 0:
+			s->clock.hclk = s->clock.clk;
+			break;
+		case 1:
+			s->clock.hclk = s->clock.clk/2;
+			break;
+		case 2:
+			s->clock.hclk = s->clock.clk/4;
+			break;
+		case 3:
+			s->clock.hclk = s->clock.clk/3;
+			break;
+	}
+	switch ( ratio&0x1) {
+		case 0:
+			s->clock.pclk = s->clock.hclk;
+			break;
+		case 1:
+			s->clock.pclk = s->clock.hclk/2;
+			break;
+	}
+}
+
 static void s3c_clkpwr_reset(struct s3c_state_s *s)
 {
     s->clkpwr_regs[S3C_LOCKTIME >> 2] = 0x00ffffff;
@@ -459,6 +494,7 @@ static void s3c_clkpwr_reset(struct s3c_state_s *s)
     s->clkpwr_regs[S3C_CLKSLOW >> 2] = 0x00000004;
     s->clkpwr_regs[S3C_CLKDIVN >> 2] = 0x00000000;
     s->clkpwr_regs[S3C2440_CAMDIVN >> 2] = 0x00000000;
+    s3c_clkpwr_update(s);
 }
 
 static uint32_t s3c_clkpwr_read(void *opaque, target_phys_addr_t addr)
@@ -489,6 +525,7 @@ static void s3c_clkpwr_write(void *opaque, target_phys_addr_t addr,
     case S3C_UPLLCON:
     case S3C_CLKDIVN:
         s->clkpwr_regs[addr >> 2] = value;
+        s3c_clkpwr_update(s);
         break;
     case S3C_CLKCON:
         if (value & (1 << 3)) {
@@ -841,6 +878,7 @@ qemu_irq *s3c_dma_get(struct s3c_dma_state_s *s)
 /* PWM timers controller */
 struct s3c_timer_state_s;
 struct s3c_timers_state_s {
+	struct s3c_freq_s * freq;
     target_phys_addr_t base;
     qemu_irq *dma;
     DisplayState *ds;
@@ -890,7 +928,7 @@ static void s3c_timers_start(struct s3c_timers_state_s *s, int tm)
     if (s->timer[tm].running)
         return;
 
-    s->timer[tm].divider = S3C_PCLK_FREQ >>
+    s->timer[tm].divider = s->freq->pclk >>
             (((s->config[1] >> (tm * 4)) & 3) + 1);
     if (tm < 2)
         s->timer[tm].divider /= ((s->config[0] >> 0) & 0xff) + 1;
@@ -1111,13 +1149,14 @@ static int s3c_timers_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct s3c_timers_state_s *s3c_timers_init(target_phys_addr_t base,
+struct s3c_timers_state_s *s3c_timers_init(struct s3c_freq_s * freq, target_phys_addr_t base,
                 qemu_irq *pic, qemu_irq *dma)
 {
     int i, iomemtype;
     struct s3c_timers_state_s *s = (struct s3c_timers_state_s *)
             qemu_mallocz(sizeof(struct s3c_timers_state_s));
 
+    s->freq = freq;
     s->base = base;
     s->dma = dma;
 
@@ -1156,6 +1195,7 @@ void s3c_timers_cmp_handler_set(void *opaque, int line,
 
 /* UART */
 struct s3c_uart_state_s {
+    struct s3c_freq_s * freq;
     target_phys_addr_t base;
     qemu_irq *irq;
     qemu_irq *dma;
@@ -1248,7 +1288,7 @@ static void s3c_uart_params_update(struct s3c_uart_state_s *s)
         return;
 
     /* XXX Calculate PCLK frequency from clock manager registers */
-    ssp.speed = (S3C_PCLK_FREQ >> 4) / (s->brdiv + 1);
+    ssp.speed = (s->freq->pclk >> 4) / (s->brdiv + 1);
 
     switch ((s->lcontrol >> 3) & 7) {
     case 4:
@@ -1476,13 +1516,14 @@ static int s3c_uart_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct s3c_uart_state_s *s3c_uart_init(target_phys_addr_t base,
+struct s3c_uart_state_s *s3c_uart_init(struct s3c_freq_s * freq, target_phys_addr_t base,
                 qemu_irq *irqs, qemu_irq *dma)
 {
     int iomemtype;
     struct s3c_uart_state_s *s = (struct s3c_uart_state_s *)
             qemu_mallocz(sizeof(struct s3c_uart_state_s));
 
+    s->freq = freq;
     s->base = base;
     s->irq = irqs;
     s->dma = dma;
@@ -2497,6 +2538,7 @@ struct s3c_i2s_state_s *s3c_i2s_init(target_phys_addr_t base, qemu_irq *dma)
 
 /* Watchdog Timer */
 struct s3c_wdt_state_s {
+	struct s3c_freq_s * freq;
     target_phys_addr_t base;
     qemu_irq irq;
     uint16_t control;
@@ -2514,7 +2556,7 @@ static void s3c_wdt_start(struct s3c_wdt_state_s *s)
     if (enable) {
         s->timestamp = qemu_get_clock(vm_clock);
         qemu_mod_timer(s->tm, s->timestamp + muldiv64(divider * s->count,
-                                ticks_per_sec, S3C_PCLK_FREQ));
+                                ticks_per_sec, s->freq->pclk));
     } else
         qemu_del_timer(s->tm);
 }
@@ -2525,7 +2567,7 @@ static void s3c_wdt_stop(struct s3c_wdt_state_s *s)
     int divider = prescaler << (((s->control >> 3) & 3) + 4);
     int diff;
 
-    diff = muldiv64(qemu_get_clock(vm_clock) - s->timestamp, S3C_PCLK_FREQ,
+    diff = muldiv64(qemu_get_clock(vm_clock) - s->timestamp, s->freq->pclk,
                     ticks_per_sec) / divider;
     s->count -= MIN(s->count, diff);
     s->timestamp = qemu_get_clock(vm_clock);
@@ -2634,12 +2676,13 @@ static int s3c_wdt_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct s3c_wdt_state_s *s3c_wdt_init(target_phys_addr_t base, qemu_irq irq)
+struct s3c_wdt_state_s *s3c_wdt_init(struct s3c_freq_s * freq, target_phys_addr_t base, qemu_irq irq)
 {
     int iomemtype;
     struct s3c_wdt_state_s *s = (struct s3c_wdt_state_s *)
             qemu_mallocz(sizeof(struct s3c_wdt_state_s));
 
+    s->freq = freq;
     s->base = base;
     s->irq = irq;
     s->tm = qemu_new_timer(vm_clock, s3c_wdt_timeout, s);
@@ -2710,6 +2753,7 @@ struct s3c_state_s * g_s3c;
 /* Initialise an S3C24XX microprocessor.  */
 struct s3c_state_s *s3c24xx_init(
 		uint32_t cpu_id,
+		uint32_t xtal,
 		unsigned int sdram_size,
 		uint32_t sram_address,
 		SDState *mmc)
@@ -2721,6 +2765,8 @@ struct s3c_state_s *s3c24xx_init(
     g_s3c = s;
 
     s->cpu_id = cpu_id;
+    s->clock.xtal = xtal;
+    s->clock.pclk = 66500000; // S3C_PCLK_FREQ;	// TEMP
 
     s->env = cpu_init("arm920t");
     if (!s->env) {
@@ -2751,6 +2797,7 @@ struct s3c_state_s *s3c24xx_init(
 
     s->clkpwr_base = 0x4c000000;
     s3c_clkpwr_reset(s);
+
     iomemtype = cpu_register_io_memory(0, s3c_clkpwr_readfn,
                     s3c_clkpwr_writefn, s);
     cpu_register_physical_memory(s->clkpwr_base, 0xffffff, iomemtype);
@@ -2765,18 +2812,19 @@ struct s3c_state_s *s3c24xx_init(
     	s->nand = s3c2410_nand_init();
 
     for (i = 0; s3c2410_uart[i].base; i ++) {
-        s->uart[i] = s3c_uart_init(s3c2410_uart[i].base,
+        s->uart[i] = s3c_uart_init(&s->clock,
+						s3c2410_uart[i].base,
                         &s->irq[s3c2410_uart[i].irq[0]],
                         &s->drq[s3c2410_uart[i].dma[0]]);
         if (serial_hds[i])
             s3c_uart_attach(s->uart[i], serial_hds[i]);
     }
 
-    s->timers = s3c_timers_init(0x51000000, &s->irq[S3C_PIC_TIMER0], s->drq);
+    s->timers = s3c_timers_init(&s->clock, 0x51000000, &s->irq[S3C_PIC_TIMER0], s->drq);
 
     s->udc = s3c_udc_init(0x52000000, s->irq[S3C_PIC_USBD], s->drq);
 
-    s->wdt = s3c_wdt_init(0x53000000, s->irq[S3C_PIC_WDT]);
+    s->wdt = s3c_wdt_init(&s->clock, 0x53000000, s->irq[S3C_PIC_WDT]);
 
     s->i2c = s3c_i2c_init(0x54000000, s->irq[S3C_PIC_IIC]);
 

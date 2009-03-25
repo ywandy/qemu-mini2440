@@ -103,7 +103,6 @@
 # define S3C_SRAM_BASE_NANDBOOT	0x00000000
 # define S3C_SRAM_SIZE	0x00001000
 
-# define S3C_PCLK_FREQ	66500000	/* Hz */
 # define S3C_XTAL_FREQ	32768		/* Hz */
 
 /* s3c2410.c */
@@ -119,14 +118,16 @@ qemu_irq *s3c_dma_get(struct s3c_dma_state_s *s);
 /* GPIO TODO: remove this out, replace with qemu_irq or sumpthin */
 typedef void (*gpio_handler_t)(int line, int level, void *opaque);
 
+struct s3c_freq_s;
 struct s3c_timers_state_s;
-struct s3c_timers_state_s *s3c_timers_init(target_phys_addr_t base,
-                qemu_irq *pic, qemu_irq *dma);
+struct s3c_timers_state_s *s3c_timers_init(struct s3c_freq_s * freq,
+				target_phys_addr_t base, qemu_irq *pic, qemu_irq *dma);
 void s3c_timers_cmp_handler_set(void *opaque, int line,
                 gpio_handler_t handler, void *cmp_opaque);
 
+struct s3c_freq_s;
 struct s3c_uart_state_s;
-struct s3c_uart_state_s *s3c_uart_init(target_phys_addr_t base,
+struct s3c_uart_state_s *s3c_uart_init(struct s3c_freq_s * freq, target_phys_addr_t base,
                 qemu_irq *irqs, qemu_irq *dma);
 void s3c_uart_attach(struct s3c_uart_state_s *s, CharDriverState *chr);
 
@@ -142,8 +143,9 @@ i2c_bus *s3c_i2c_bus(struct s3c_i2c_state_s *s);
 struct s3c_i2s_state_s;
 struct s3c_i2s_state_s *s3c_i2s_init(target_phys_addr_t base, qemu_irq *dma);
 
+struct s3c_freq_s;
 struct s3c_wdt_state_s;
-struct s3c_wdt_state_s *s3c_wdt_init(target_phys_addr_t base, qemu_irq irq);
+struct s3c_wdt_state_s *s3c_wdt_init(struct s3c_freq_s * freq, target_phys_addr_t base, qemu_irq irq);
 
 /* s3c24xx_gpio.c */
 struct s3c_gpio_state_s;
@@ -197,8 +199,17 @@ void s3c_spi_attach(struct s3c_spi_state_s *s, int ch,
                 uint8_t (*txrx)(void *opaque, uint8_t value),
                 uint8_t (*btxrx)(void *opaque, uint8_t value), void *opaque);
 
+struct s3c_freq_s {
+	uint32_t	xtal;	/* 16 or 12Mhz : Set in init()*/
+	/* These are recalculated when the guest code changes the clock registers */
+	uint32_t	clk;	/* CPU clock */
+	uint32_t	hclk;	/* SDRAM clock */
+	uint32_t	pclk;	/* peripheral clock */
+};
+
 struct s3c_state_s {
     CPUState *env;
+    struct s3c_freq_s	clock;
     uint32_t cpu_id;
     qemu_irq *irq;
     qemu_irq *drq;
@@ -228,7 +239,7 @@ struct s3c_state_s {
 };
 
 /* s3c2410.c */
-struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, unsigned int sdram_size, uint32_t sram_address,
+struct s3c_state_s *s3c24xx_init(uint32_t cpu_id, uint32_t xtal, unsigned int sdram_size, uint32_t sram_address,
 		SDState *mmc);
 
 

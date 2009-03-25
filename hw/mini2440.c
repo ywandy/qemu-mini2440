@@ -298,7 +298,7 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
         fprintf(stderr, "This platform requires an ARM920T core\n");
         exit(2);
     }
-    s->cpu = s3c24xx_init(S3C_CPU_2440, s->ram, S3C_SRAM_BASE_NANDBOOT, s->mmc);
+    s->cpu = s3c24xx_init(S3C_CPU_2440, 12000000 /* 12 mhz */, s->ram, S3C_SRAM_BASE_NANDBOOT, s->mmc);
 
     /* Setup peripherals */
     mini2440_gpio_setup(s);
