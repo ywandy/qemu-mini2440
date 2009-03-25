@@ -154,7 +154,7 @@ static struct ee24c08_s * ee24c08_init(i2c_bus *bus)
 /* Handlers for output ports */
 static void mini2440_bl_switch(void *opaque, int line, int level)
 {
-	printf("%s: LCD Backlight now %s.\n", __FUNCTION__, level ? "on" : "off");
+	printf("%s: LCD Backlight now %s (%d).\n", __FUNCTION__, level ? "on" : "off", level);
 }
 
 static void mini2440_bl_intensity(int line, int level, void *opaque)
@@ -163,7 +163,7 @@ static void mini2440_bl_intensity(int line, int level, void *opaque)
 
     if ((level >> 8) != s->bl_level) {
         s->bl_level = level >> 8;
-        printf("%s: LCD Backlight now at %04x\n", __FUNCTION__, s->bl_level);
+        printf("%s: LCD Backlight now at %04x\n", __FUNCTION__, level);
     }
 }
 
@@ -216,13 +216,15 @@ static int mini2440_load_from_nand(struct nand_flash_s *nand,
 	if (!nand)
 		return 0;
 
-	for (page = 0; page < (size / 512); page++, src += 512 + 16, dst += 512)
-		if (nand_readraw(nand, nand_offset + src, buffer, 512) == 0) {
+	for (page = 0; page < (size / 512); page++, src += 512 + 16, dst += 512) {
+		if (nand_readraw(nand, nand_offset + src, buffer, 512)) {
+			cpu_physical_memory_write(s3c_base_offset + dst, buffer, 512);
+		} else {
 			fprintf(stderr, "%s: failed to load nand %d:%d\n", __FUNCTION__,
 			        nand_offset + src, 512 + 16);
 			return 0;
-		} else
-			cpu_physical_memory_write(s3c_base_offset + dst, buffer, 512);
+		}
+	}
 	return (int) size;
 }
 
@@ -322,10 +324,6 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
 
     /* Setup initial (reset) machine state */
     qemu_register_reset(mini2440_reset, s);
-#if 0
-    arm_load_kernel(s->ram, kernel_filename, kernel_cmdline,
-                    initrd_filename, 0x49e, S3C_RAM_BASE);
-#endif
 
     return s;
 }
