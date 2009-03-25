@@ -179,11 +179,11 @@ static void mini2440_gpio_setup(struct mini2440_board_s *s)
 
     s3c_timers_cmp_handler_set(s->cpu->timers, 1, mini2440_bl_intensity, s);
 
-    /* this confuses the kernel, we will need a way to bridge this IRQ to the SD system
-     * right now without this, qemu will not know how to pass the SD card insert/remove
-     * properly to the kernel
- 	sd_set_cb(s->mmc, 0, s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]);
- 	 */
+    /* Register the SD card pins to the lower SD driver */
+ 	sd_set_cb(s->mmc,
+ 			s3c_gpio_in_get(s->cpu->io)[MINI2440_GPIO_WP_SD],
+			qemu_irq_invert(s3c_gpio_in_get(s->cpu->io)[MINI2440_IRQ_nSD_DETECT]));
+
 }
 
 #if 0
