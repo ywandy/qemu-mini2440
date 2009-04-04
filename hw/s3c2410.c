@@ -452,14 +452,19 @@ static int s3c_mc_load(QEMUFile *f, void *opaque, int version_id)
 
 static void s3c_clkpwr_update(struct s3c_state_s *s)
 {
-	uint32_t mpll = s->clkpwr_regs[S3C_MPLLCON >> 2],
-			 ratio = s->clkpwr_regs[S3C_CLKDIVN >> 2];
-	uint32_t mdiv = (mpll >> 12) & 0xff,
-			pdiv = (mpll >> 4) & 0x3f,
-			sdiv = (mpll) & 0x3;
+	uint32_t mpll[2] = { s->clkpwr_regs[S3C_MPLLCON >> 2], s->clkpwr_regs[S3C_UPLLCON >> 2] };
+	uint32_t clk[2];
+	int i;
 
-	s->clock.clk = ((mdiv + 8) * s->clock.xtal * 2) /
-						((pdiv + 2) * (1 << sdiv));
+	for (i = 0; i < 2; i++) {
+		uint32_t mdiv = ((mpll[i] >> 12) & 0xff) + 8,
+				pdiv = ((mpll[i] >> 4) & 0x3f) + 2,
+				sdiv = (mpll[i]) & 0x3;
+		clk[i] = (mdiv * s->clock.xtal * 2) / (pdiv * (1 << sdiv));
+	}
+
+	s->clock.clk = clk[0];
+	uint32_t ratio = s->clkpwr_regs[S3C_CLKDIVN >> 2];
 
 	switch( (ratio & 0x6) >> 1 ) {
 		case 0:
@@ -483,6 +488,11 @@ static void s3c_clkpwr_update(struct s3c_state_s *s)
 			s->clock.pclk = s->clock.hclk/2;
 			break;
 	}
+	s->clock.uclk = clk[1] / 2;
+	#define MHZ	1000000
+	printf("S3C: CLK=%d HCLK=%d PCLK=%d UCLK=%d\n",
+				s->clock.clk/MHZ, s->clock.hclk/MHZ, s->clock.pclk/MHZ,
+				s->clock.uclk/MHZ);
 }
 
 static void s3c_clkpwr_reset(struct s3c_state_s *s)
@@ -525,7 +535,8 @@ static void s3c_clkpwr_write(void *opaque, target_phys_addr_t addr,
     case S3C_UPLLCON:
     case S3C_CLKDIVN:
         s->clkpwr_regs[addr >> 2] = value;
-        s3c_clkpwr_update(s);
+        if (addr != S3C_LOCKTIME)
+        	s3c_clkpwr_update(s);
         break;
     case S3C_CLKCON:
         if (value & (1 << 3)) {

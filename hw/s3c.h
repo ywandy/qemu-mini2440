@@ -205,6 +205,7 @@ struct s3c_freq_s {
 	uint32_t	clk;	/* CPU clock */
 	uint32_t	hclk;	/* SDRAM clock */
 	uint32_t	pclk;	/* peripheral clock */
+	uint32_t	uclk;
 };
 
 struct s3c_state_s {
