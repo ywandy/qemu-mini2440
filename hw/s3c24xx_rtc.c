@@ -277,7 +277,7 @@ static CPUWriteMemoryFunc *s3c_rtc_writefn[] = {
 static void s3c_rtc_save(QEMUFile *f, void *opaque)
 {
     struct s3c_rtc_state_s *s = (struct s3c_rtc_state_s *) opaque;
-    qemu_put_be64s(f, &s->next);
+    qemu_put_sbe64s(f, &s->next);
     qemu_put_8s(f, &s->control);
     qemu_put_8s(f, &s->tick);
     qemu_put_8s(f, &s->alarm);
@@ -294,7 +294,7 @@ static void s3c_rtc_save(QEMUFile *f, void *opaque)
 static int s3c_rtc_load(QEMUFile *f, void *opaque, int version_id)
 {
     struct s3c_rtc_state_s *s = (struct s3c_rtc_state_s *) opaque;
-    qemu_get_be64s(f, &s->next);
+    qemu_get_sbe64s(f, &s->next);
     qemu_get_8s(f, &s->control);
     qemu_get_8s(f, &s->tick);
     qemu_get_8s(f, &s->alarm);

@@ -252,7 +252,7 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
         	if (s->nfcont & S3C_NFCONT_LOCK) {
         		if (s->nfaddr_cur < (s->nfsblk << 6) ||
         				s->nfaddr_cur > (s->nfeblk << 6)) {
-        			// TODO: ADD IRQ
+        			/* TODO: ADD IRQ */
         			break;
         		}
         	}
@@ -273,11 +273,11 @@ static void s3c2440_nand_write(void *opaque, target_phys_addr_t addr,
         break;
     case S3C_NFSBLK:
     	s->nfsblk = value & 0xffffff;
-        printf("%s: S3C_NFSBLK set to 0x%x\n", __FUNCTION__, value);
+      /*  printf("%s: S3C_NFSBLK set to 0x%x\n", __FUNCTION__, value); */
     	break;
     case S3C_NFEBLK:
     	s->nfeblk = value & 0xffffff;
-        printf("%s: S3C_NFEBLK set to 0x%x\n", __FUNCTION__, value);
+      /*  printf("%s: S3C_NFEBLK set to 0x%x\n", __FUNCTION__, value); */
     	break;
 
     default:
