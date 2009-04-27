@@ -166,7 +166,7 @@ static void raw_close(BlockDriverState *bs)
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
     BDRVRawState *s = bs->opaque;
-    DWORD low, high;
+    LONG low, high;
 
     low = offset;
     high = offset >> 32;
@@ -188,7 +188,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
 
     switch(s->type) {
     case FTYPE_FILE:
-        l.LowPart = GetFileSize(s->hfile, &l.HighPart);
+        l.LowPart = GetFileSize(s->hfile, (PDWORD)&l.HighPart);
         if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
             return -EIO;
         break;
@@ -229,20 +229,16 @@ static int raw_create(const char *filename, int64_t total_size,
 }
 
 BlockDriver bdrv_raw = {
-    "raw",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    raw_open,
-    NULL,
-    NULL,
-    raw_close,
-    raw_create,
-    raw_flush,
-
-    .bdrv_read = raw_read,
-    .bdrv_write = raw_write,
-    .bdrv_truncate = raw_truncate,
-    .bdrv_getlength = raw_getlength,
+    .format_name	= "raw",
+    .instance_size	= sizeof(BDRVRawState),
+    .bdrv_open		= raw_open,
+    .bdrv_close		= raw_close,
+    .bdrv_create	= raw_create,
+    .bdrv_flush		= raw_flush,
+    .bdrv_read		= raw_read,
+    .bdrv_write		= raw_write,
+    .bdrv_truncate	= raw_truncate,
+    .bdrv_getlength	= raw_getlength,
 };
 
 /***********************************************/
@@ -280,10 +276,15 @@ static int find_device_type(BlockDriverState *bs, const char *filename)
             return FTYPE_HARDDISK;
         snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", p[0]);
         type = GetDriveType(s->drive_path);
-        if (type == DRIVE_CDROM)
+        switch (type) {
+        case DRIVE_REMOVABLE:
+        case DRIVE_FIXED:
+            return FTYPE_HARDDISK;
+        case DRIVE_CDROM:
             return FTYPE_CD;
-        else
+        default:
             return FTYPE_FILE;
+        }
     } else {
         return FTYPE_FILE;
     }

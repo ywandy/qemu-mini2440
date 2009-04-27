@@ -17,6 +17,13 @@ STEXI
 Display help and exit
 ETEXI
 
+DEF("version", 0, QEMU_OPTION_version,
+    "-version        display version information and exit\n")
+STEXI
+@item -version
+Display version information and exit
+ETEXI
+
 DEF("M", HAS_ARG, QEMU_OPTION_M,
     "-M machine      select emulated machine (-M ? for list)\n")
 STEXI
@@ -38,6 +45,14 @@ STEXI
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
 CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
 to 4.
+ETEXI
+
+DEF("numa", HAS_ARG, QEMU_OPTION_numa,
+    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n")
+STEXI
+@item -numa @var{opts}
+Simulate a multi node NUMA system. If mem and cpus are omitted, resources
+are split equally.
 ETEXI
 
 DEF("fda", HAS_ARG, QEMU_OPTION_fda,
@@ -228,10 +243,8 @@ a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
 gigabytes respectively.
 ETEXI
 
-#ifndef _WIN32
 DEF("k", HAS_ARG, QEMU_OPTION_k,
     "-k language     use keyboard layout (for example 'fr' for French)\n")
-#endif
 STEXI
 @item -k @var{language}
 
@@ -452,7 +465,7 @@ Rotate graphical output 90 deg left (only PXA LCD).
 ETEXI
 
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,
-    "-vga [std|cirrus|vmware|none]\n"
+    "-vga [std|cirrus|vmware|xenfb|none]\n"
     "                select video card type\n")
 STEXI
 @item -vga @var{type}
@@ -678,6 +691,27 @@ Add ACPI table with specified header fields and context from specified files.
 ETEXI
 
 #ifdef TARGET_I386
+DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
+    "-smbios file=binary\n"
+    "                Load SMBIOS entry from binary file\n"
+    "-smbios type=0[,vendor=str][,version=str][,date=str][,release=%%d.%%d]\n"
+    "                Specify SMBIOS type 0 fields\n"
+    "-smbios type=1[,manufacturer=str][,product=str][,version=str][,serial=str]\n"
+    "              [,uuid=uuid][,sku=str][,family=str]\n"
+    "                Specify SMBIOS type 1 fields\n")
+#endif
+STEXI
+@item -smbios file=@var{binary}
+Load SMBIOS entry from binary file.
+
+@item -smbios type=0[,vendor=@var{str}][,version=@var{str}][,date=@var{str}][,release=@var{%d.%d}]
+Specify SMBIOS type 0 fields
+
+@item -smbios type=1[,manufacturer=@var{str}][,product=@var{str}][,version=@var{str}][,serial=@var{str}][,uuid=@var{uuid}][,sku=@var{str}][,family=@var{str}]
+Specify SMBIOS type 1 fields
+ETEXI
+
+#ifdef TARGET_I386
 DEFHEADING()
 #endif
 STEXI
@@ -719,6 +753,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net, \
     "                Use group 'groupname' and mode 'octalmode' to change default\n"
     "                ownership and permissions for communication port.\n"
 #endif
+    "-net dump[,vlan=n][,file=f][,len=n]\n"
+    "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
 STEXI
@@ -839,6 +875,11 @@ vde_switch -F -sock /tmp/myswitch
 qemu linux.img -net nic -net vde,sock=/tmp/myswitch
 @end example
 
+@item -net dump[,vlan=@var{n}][,file=@var{file}][,len=@var{len}]
+Dump network traffic on VLAN @var{n} to file @var{file} (@file{qemu-vlan0.pcap} by default).
+At most @var{len} bytes (64k by default) per packet are stored. The file format is
+libpcap, so it can be analyzed with tools such as tcpdump or Wireshark.
+
 @item -net none
 Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which
@@ -910,7 +951,7 @@ When using the user mode network stack, redirect incoming TCP or UDP
 connections to the host port @var{host-port} to the guest
 @var{guest-host} on guest port @var{guest-port}. If @var{guest-host}
 is not specified, its value is 10.0.2.15 (default address given by the
-built-in DHCP server).
+built-in DHCP server). If no connection type is specified, TCP is used.
 
 For example, to redirect host X11 connection from screen 1 to guest
 screen 0, use the following:
@@ -1209,6 +1250,13 @@ Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
 ETEXI
 
+DEF("singlestep", 0, QEMU_OPTION_singlestep, \
+    "-singlestep   always run in singlestep mode\n")
+STEXI
+@item -singlestep
+Run the emulation in single step mode.
+ETEXI
+
 DEF("S", 0, QEMU_OPTION_S, \
     "-S              freeze CPU at startup (use 'c' to start execution)\n")
 STEXI
@@ -1216,19 +1264,25 @@ STEXI
 Do not start CPU at startup (you must type 'c' in the monitor).
 ETEXI
 
-DEF("s", 0, QEMU_OPTION_s, \
-    "-s              wait gdb connection to port\n")
+DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
+    "-gdb dev        wait for gdb connection on 'dev'\n")
 STEXI
-@item -s
-Wait gdb connection to port 1234 (@pxref{gdb_usage}).
+@item -gdb @var{dev}
+Wait for gdb connection on device @var{dev} (@pxref{gdb_usage}). Typical
+connections will likely be TCP-based, but also UDP, pseudo TTY, or even
+stdio are reasonable use case. The latter is allowing to start qemu from
+within gdb and establish the connection via a pipe:
+@example
+(gdb) target remote | exec qemu -gdb stdio ...
+@end example
 ETEXI
 
-DEF("p", HAS_ARG, QEMU_OPTION_p, \
-    "-p port         set gdb connection port [default=%s]\n")
+DEF("s", 0, QEMU_OPTION_s, \
+    "-s              shorthand for -gdb tcp::%s\n")
 STEXI
-@item -p @var{port}
-Change gdb connection port.  @var{port} can be either a decimal number
-to specify a TCP port, or a host device (same devices as the serial port).
+@item -s
+Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
+(@pxref{gdb_usage}).
 ETEXI
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
@@ -1265,7 +1319,7 @@ STEXI
 Set the filename for the BIOS.
 ETEXI
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 DEF("kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu, \
     "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n")
 #endif
@@ -1274,7 +1328,7 @@ STEXI
 Enable KQEMU full virtualization (default is user mode only).
 ETEXI
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 DEF("no-kqemu", 0, QEMU_OPTION_no_kqemu, \
     "-no-kqemu       disable KQEMU kernel module usage\n")
 #endif
@@ -1293,6 +1347,17 @@ STEXI
 Enable KVM full virtualization support. This option is only available
 if KVM support is enabled when compiling.
 ETEXI
+
+#ifdef CONFIG_XEN
+DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,
+    "-xen-domid id   specify xen guest domain id\n")
+DEF("xen-create", 0, QEMU_OPTION_xen_create,
+    "-xen-create     create domain using xen hypercalls, bypassing xend\n"
+    "                warning: should not be used when xend is in use\n")
+DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
+    "-xen-attach     attach to existing xen domain\n"
+    "                xend will use this when starting qemu\n")
+#endif
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
     "-no-reboot      exit instead of rebooting\n")
@@ -1368,7 +1433,8 @@ ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
     "-icount [N|auto]\n" \
-    "                enable virtual instruction counter with 2^N clock ticks per instruction\n")
+    "                enable virtual instruction counter with 2^N clock ticks per\n" \
+    "                instruction\n")
 STEXI
 @item -icount [N|auto]
 Enable virtual instruction counter.  The virtual cpu will execute one

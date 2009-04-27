@@ -3272,6 +3272,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			break;
 	} while (!dc->is_jmp && !dc->cpustate_changed
 		 && gen_opc_ptr < gen_opc_end
+                 && !singlestep
 		 && (dc->pc < next_page_start)
                  && num_insns < max_insns);
 
@@ -3404,6 +3405,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 	cpu_exec_init(env);
 	cpu_reset(env);
+	qemu_init_vcpu(env);
 
 	if (tcg_initialized)
 		return env;

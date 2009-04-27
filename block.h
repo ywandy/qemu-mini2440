@@ -73,6 +73,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags);
 int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
                BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
+int bdrv_check(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
@@ -96,13 +97,6 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
 BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *iov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb, void *opaque);
-
-BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
-                                uint8_t *buf, int nb_sectors,
-                                BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
-                                 const uint8_t *buf, int nb_sectors,
-                                 BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
 /* sg packet commands */
@@ -177,5 +171,10 @@ int path_is_absolute(const char *path);
 void path_combine(char *dest, int dest_size,
                   const char *base_path,
                   const char *filename);
+
+int bdrv_put_buffer(BlockDriverState *bs, const uint8_t *buf,
+                    int64_t pos, int size);
+
+int bdrv_get_buffer(BlockDriverState *bs, uint8_t *buf, int64_t pos, int size);
 
 #endif

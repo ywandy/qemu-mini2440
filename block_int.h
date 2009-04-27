@@ -54,11 +54,11 @@ struct BlockDriver {
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
-    BlockDriverAIOCB *(*bdrv_aio_read)(BlockDriverState *bs,
-        int64_t sector_num, uint8_t *buf, int nb_sectors,
+    BlockDriverAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_write)(BlockDriverState *bs,
-        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+    BlockDriverAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
     void (*bdrv_aio_cancel)(BlockDriverAIOCB *acb);
     int aiocb_size;
@@ -78,6 +78,11 @@ struct BlockDriver {
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
 
+    int (*bdrv_put_buffer)(BlockDriverState *bs, const uint8_t *buf,
+                           int64_t pos, int size);
+    int (*bdrv_get_buffer)(BlockDriverState *bs, uint8_t *buf,
+                           int64_t pos, int size);
+
     /* removable device specific */
     int (*bdrv_is_inserted)(BlockDriverState *bs);
     int (*bdrv_media_changed)(BlockDriverState *bs);
@@ -96,6 +101,9 @@ struct BlockDriver {
     int (*bdrv_create2)(const char *filename, int64_t total_sectors,
                         const char *backing_file, const char *backing_format,
                         int flags);
+
+    /* Returns number of errors in image, -errno for internal errors */
+    int (*bdrv_check)(BlockDriverState* bs);
 
     struct BlockDriver *next;
 };
@@ -137,6 +145,9 @@ struct BlockDriverState {
     /* Whether the disk can expand beyond total_sectors */
     int growable;
 
+    /* the memory alignment required for the buffers handled by this driver */
+    int buffer_alignment;
+
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;
@@ -164,6 +175,8 @@ void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
 void *qemu_aio_get_pool(AIOPool *pool, BlockDriverState *bs,
                         BlockDriverCompletionFunc *cb, void *opaque);
 void qemu_aio_release(void *p);
+
+void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 extern BlockDriverState *bdrv_first;
 

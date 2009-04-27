@@ -22,11 +22,15 @@
  * THE SOFTWARE.
  */
 
-/* define it to suppress various consistency checks (faster) */
-#define NDEBUG
-
 /* define it to use liveness analysis (better code) */
 #define USE_LIVENESS_ANALYSIS
+
+#include "config.h"
+
+#ifndef DEBUG_TCG
+/* define it to suppress various consistency checks (faster) */
+#define NDEBUG
+#endif
 
 #include <assert.h>
 #include <stdarg.h>
@@ -41,7 +45,6 @@
 #include <alloca.h>
 #endif
 
-#include "config.h"
 #include "qemu-common.h"
 #include "cache-utils.h"
 
@@ -1122,9 +1125,11 @@ static void tcg_liveness_analysis(TCGContext *s)
                         dead_temps[arg] = 1;
                     }
                     
-                    /* globals are live (they may be used by the call) */
-                    memset(dead_temps, 0, s->nb_globals);
-                    
+                    if (!(call_flags & TCG_CALL_CONST)) {
+                        /* globals are live (they may be used by the call) */
+                        memset(dead_temps, 0, s->nb_globals);
+                    }
+
                     /* input args are live */
                     dead_iargs = 0;
                     for(i = 0; i < nb_iargs; i++) {
@@ -1821,7 +1826,9 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     
     /* store globals and free associated registers (we assume the call
        can modify any global. */
-    save_globals(s, allocated_regs);
+    if (!(flags & TCG_CALL_CONST)) {
+        save_globals(s, allocated_regs);
+    }
 
     tcg_out_op(s, opc, &func_arg, &const_func_arg);
     

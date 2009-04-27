@@ -273,7 +273,7 @@ static void do_info(Monitor *mon, const char *item)
 
 static void do_info_version(Monitor *mon)
 {
-    monitor_printf(mon, "%s\n", QEMU_VERSION);
+    monitor_printf(mon, "%s\n", QEMU_VERSION QEMU_PKGVERSION);
 }
 
 static void do_info_name(Monitor *mon)
@@ -527,6 +527,17 @@ static void do_log(Monitor *mon, const char *items)
     cpu_set_log(mask);
 }
 
+static void do_singlestep(Monitor *mon, const char *option)
+{
+    if (!option || !strcmp(option, "on")) {
+        singlestep = 1;
+    } else if (!strcmp(option, "off")) {
+        singlestep = 0;
+    } else {
+        monitor_printf(mon, "unexpected option %s\n", option);
+    }
+}
+
 static void do_stop(Monitor *mon)
 {
     vm_stop(EXCP_INTERRUPT);
@@ -570,17 +581,18 @@ static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
 }
 
 #ifdef CONFIG_GDBSTUB
-static void do_gdbserver(Monitor *mon, const char *port)
+static void do_gdbserver(Monitor *mon, const char *device)
 {
-    if (!port)
-        port = DEFAULT_GDBSTUB_PORT;
-    if (gdbserver_start(port) < 0) {
-        monitor_printf(mon, "Could not open gdbserver socket on port '%s'\n",
-                       port);
-    } else if (strcmp(port, "none") == 0) {
+    if (!device)
+        device = "tcp::" DEFAULT_GDBSTUB_PORT;
+    if (gdbserver_start(device) < 0) {
+        monitor_printf(mon, "Could not open gdbserver on device '%s'\n",
+                       device);
+    } else if (strcmp(device, "none") == 0) {
         monitor_printf(mon, "Disabled gdbserver\n");
     } else {
-        monitor_printf(mon, "Waiting gdb connection on port '%s'\n", port);
+        monitor_printf(mon, "Waiting for gdb connection on device '%s'\n",
+                       device);
     }
 }
 #endif
@@ -1356,7 +1368,7 @@ static void tlb_info(Monitor *mon)
 
 static void do_info_kqemu(Monitor *mon)
 {
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     CPUState *env;
     int val;
     val = 0;
@@ -1397,6 +1409,25 @@ static void do_info_kvm(Monitor *mon)
 #endif
 }
 
+static void do_info_numa(Monitor *mon)
+{
+    int i;
+    CPUState *env;
+
+    monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        monitor_printf(mon, "node %d cpus:", i);
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            if (env->numa_node == i) {
+                monitor_printf(mon, " %d", env->cpu_index);
+            }
+        }
+        monitor_printf(mon, "\n");
+        monitor_printf(mon, "node %d size: %" PRId64 " MB\n", i,
+            node_mem[i] >> 20);
+    }
+}
+
 #ifdef CONFIG_PROFILER
 
 int64_t kqemu_time;
@@ -1433,7 +1464,7 @@ static void do_info_profile(Monitor *mon)
     kqemu_ret_int_count = 0;
     kqemu_ret_excp_count = 0;
     kqemu_ret_intr_count = 0;
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     kqemu_record_dump();
 #endif
 }
@@ -1510,9 +1541,13 @@ static void do_inject_nmi(Monitor *mon, int cpu_index)
 
 static void do_info_status(Monitor *mon)
 {
-    if (vm_running)
-       monitor_printf(mon, "VM status: running\n");
-    else
+    if (vm_running) {
+        if (singlestep) {
+            monitor_printf(mon, "VM status: running (single step mode)\n");
+        } else {
+            monitor_printf(mon, "VM status: running\n");
+        }
+    } else
        monitor_printf(mon, "VM status: paused\n");
 }
 
@@ -1624,7 +1659,7 @@ static const mon_cmd_t mon_cmds[] = {
     { "commit", "s", do_commit,
       "device|all", "commit changes to the disk images (if -snapshot is used) or backing files" },
     { "info", "s?", do_info,
-      "subcommand", "show various information about the system state" },
+      "[subcommand]", "show various information about the system state" },
     { "q|quit", "", do_quit,
       "", "quit the emulator" },
     { "eject", "-fB", do_eject,
@@ -1638,18 +1673,20 @@ static const mon_cmd_t mon_cmds[] = {
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" },
     { "savevm", "s?", do_savevm,
-      "tag|id", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" },
+      "[tag|id]", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" },
     { "loadvm", "s", do_loadvm,
       "tag|id", "restore a VM snapshot from its tag or id" },
     { "delvm", "s", do_delvm,
       "tag|id", "delete a VM snapshot from its tag or id" },
+    { "singlestep", "s?", do_singlestep,
+      "[on|off]", "run emulation in singlestep mode or switch to normal mode", },
     { "stop", "", do_stop,
       "", "stop emulation", },
     { "c|cont", "", do_cont,
       "", "resume emulation", },
 #ifdef CONFIG_GDBSTUB
     { "gdbserver", "s?", do_gdbserver,
-      "[port]", "start gdbserver session (default port=1234)", },
+      "[device]", "start gdbserver on given device (default 'tcp::1234'), stop with 'none'", },
 #endif
     { "x", "/l", do_memory_dump,
       "/fmt addr", "virtual memory dump starting at 'addr'", },
@@ -1682,7 +1719,7 @@ static const mon_cmd_t mon_cmds[] = {
       "index", "set which mouse device receives events" },
 #ifdef HAS_AUDIO
     { "wavcapture", "si?i?i?", do_wav_capture,
-      "path [frequency bits channels]",
+      "path [frequency [bits [channels]]]",
       "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
 #endif
     { "stopcapture", "i", do_stop_capture,
@@ -1712,16 +1749,20 @@ static const mon_cmd_t mon_cmds[] = {
                                         "add drive to PCI storage controller" },
     { "pci_add", "sss", pci_device_hot_add, "pci_addr=auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
     { "pci_del", "s", pci_device_hot_remove, "pci_addr=[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
-    { "host_net_add", "ss", net_host_device_add,
-      "[tap,user,socket,vde] options", "add host VLAN client" },
+#endif
+    { "host_net_add", "ss?", net_host_device_add,
+      "tap|user|socket|vde|dump [options]", "add host VLAN client" },
     { "host_net_remove", "is", net_host_device_remove,
       "vlan_id name", "remove host VLAN client" },
+#ifdef CONFIG_SLIRP
+    { "host_net_redir", "s", net_slirp_redir,
+      "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)" },
 #endif
     { "balloon", "i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },
     { "set_link", "ss", do_set_link,
-      "name [up|down]", "change the link status of a network adapter" },
-    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match>] [<index>]\n",
+      "name up|down", "change the link status of a network adapter" },
+    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match> [<index>]]\n",
                                "acl show vnc.username\n"
                                "acl policy vnc.username deny\n"
                                "acl allow vnc.username fred\n"
@@ -1770,6 +1811,8 @@ static const mon_cmd_t info_cmds[] = {
       "", "show KQEMU information", },
     { "kvm", "", do_info_kvm,
       "", "show KVM information", },
+    { "numa", "", do_info_numa,
+      "", "show NUMA information", },
     { "usb", "", usb_info,
       "", "show guest USB devices", },
     { "usbhost", "", usb_host_info,

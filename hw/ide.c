@@ -496,6 +496,8 @@ typedef struct BMDMAState {
     IDEState *ide_if;
     BlockDriverCompletionFunc *dma_cb;
     BlockDriverAIOCB *aiocb;
+    struct iovec iov;
+    QEMUIOVector qiov;
     int64_t sector_num;
     uint32_t nsector;
 } BMDMAState;
@@ -1467,9 +1469,11 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 #ifdef DEBUG_AIO
     printf("aio_read_cd: lba=%u n=%d\n", s->lba, n);
 #endif
-    bm->aiocb = bdrv_aio_read(s->bs, (int64_t)s->lba << 2,
-                              s->io_buffer + data_offset, n * 4,
-                              ide_atapi_cmd_read_dma_cb, bm);
+    bm->iov.iov_base = (void *)(s->io_buffer + data_offset);
+    bm->iov.iov_len = n * 4 * 512;
+    qemu_iovec_init_external(&bm->qiov, &bm->iov, 1);
+    bm->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2, &bm->qiov,
+                               n * 4, ide_atapi_cmd_read_dma_cb, bm);
     if (!bm->aiocb) {
         /* Note: media not present is the most likely case */
         ide_atapi_cmd_error(s, SENSE_NOT_READY,
@@ -2784,11 +2788,11 @@ static void ide_init2(IDEState *ide_state,
 
     for(i = 0; i < 2; i++) {
         s = ide_state + i;
-        s->io_buffer = qemu_memalign(512, IDE_DMA_BUF_SECTORS*512 + 4);
         if (i == 0)
             s->bs = hd0;
         else
             s->bs = hd1;
+        s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
         if (s->bs) {
             bdrv_get_geometry(s->bs, &nb_sectors);
             bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);

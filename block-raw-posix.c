@@ -165,7 +165,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->fd = fd;
     s->aligned_buf = NULL;
     if ((flags & BDRV_O_NOCACHE)) {
-        s->aligned_buf = qemu_memalign(512, ALIGNED_BUFFER_SIZE);
+        s->aligned_buf = qemu_blockalign(bs, ALIGNED_BUFFER_SIZE);
         if (s->aligned_buf == NULL) {
             ret = -errno;
             close(fd);
@@ -599,8 +599,8 @@ static int posix_aio_init(void)
     return 0;
 }
 
-static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
-        int64_t sector_num, uint8_t *buf, int nb_sectors,
+static RawAIOCB *raw_aio_setup(BlockDriverState *bs, int64_t sector_num,
+        QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
@@ -614,22 +614,23 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
         return NULL;
     acb->aiocb.aio_fildes = s->fd;
     acb->aiocb.ev_signo = SIGUSR2;
-    acb->aiocb.aio_buf = buf;
-    if (nb_sectors < 0)
-        acb->aiocb.aio_nbytes = -nb_sectors;
-    else
-        acb->aiocb.aio_nbytes = nb_sectors * 512;
+    acb->aiocb.aio_iov = qiov->iov;
+    acb->aiocb.aio_niov = qiov->niov;
+    acb->aiocb.aio_nbytes = nb_sectors * 512;
     acb->aiocb.aio_offset = sector_num * 512;
+    acb->aiocb.aio_flags = 0;
+
+    /*
+     * If O_DIRECT is used the buffer needs to be aligned on a sector
+     * boundary. Tell the low level code to ensure that in case it's
+     * not done yet.
+     */
+    if (s->aligned_buf)
+        acb->aiocb.aio_flags |= QEMU_AIO_SECTOR_ALIGNED;
+
     acb->next = posix_aio_state->first_aio;
     posix_aio_state->first_aio = acb;
     return acb;
-}
-
-static void raw_aio_em_cb(void* opaque)
-{
-    RawAIOCB *acb = opaque;
-    acb->common.cb(acb->common.opaque, acb->ret);
-    qemu_aio_release(acb);
 }
 
 static void raw_aio_remove(RawAIOCB *acb)
@@ -651,28 +652,13 @@ static void raw_aio_remove(RawAIOCB *acb)
     }
 }
 
-static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
-        int64_t sector_num, uint8_t *buf, int nb_sectors,
+static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     RawAIOCB *acb;
 
-    /*
-     * If O_DIRECT is used and the buffer is not aligned fall back
-     * to synchronous IO.
-     */
-    BDRVRawState *s = bs->opaque;
-
-    if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
-        QEMUBH *bh;
-        acb = qemu_aio_get(bs, cb, opaque);
-        acb->ret = raw_pread(bs, 512 * sector_num, buf, 512 * nb_sectors);
-        bh = qemu_bh_new(raw_aio_em_cb, acb);
-        qemu_bh_schedule(bh);
-        return &acb->common;
-    }
-
-    acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
+    acb = raw_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque);
     if (!acb)
         return NULL;
     if (qemu_paio_read(&acb->aiocb) < 0) {
@@ -682,28 +668,13 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
     return &acb->common;
 }
 
-static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
-        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     RawAIOCB *acb;
 
-    /*
-     * If O_DIRECT is used and the buffer is not aligned fall back
-     * to synchronous IO.
-     */
-    BDRVRawState *s = bs->opaque;
-
-    if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
-        QEMUBH *bh;
-        acb = qemu_aio_get(bs, cb, opaque);
-        acb->ret = raw_pwrite(bs, 512 * sector_num, buf, 512 * nb_sectors);
-        bh = qemu_bh_new(raw_aio_em_cb, acb);
-        qemu_bh_schedule(bh);
-        return &acb->common;
-    }
-
-    acb = raw_aio_setup(bs, sector_num, (uint8_t*)buf, nb_sectors, cb, opaque);
+    acb = raw_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque);
     if (!acb)
         return NULL;
     if (qemu_paio_write(&acb->aiocb) < 0) {
@@ -876,25 +847,23 @@ static void raw_flush(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_raw = {
-    "raw",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    raw_open,
-    NULL,
-    NULL,
-    raw_close,
-    raw_create,
-    raw_flush,
+    .format_name = "raw",
+    .instance_size = sizeof(BDRVRawState),
+    .bdrv_probe = NULL, /* no probe for protocols */
+    .bdrv_open = raw_open,
+    .bdrv_read = raw_read,
+    .bdrv_write = raw_write,
+    .bdrv_close = raw_close,
+    .bdrv_create = raw_create,
+    .bdrv_flush = raw_flush,
 
 #ifdef CONFIG_AIO
-    .bdrv_aio_read = raw_aio_read,
-    .bdrv_aio_write = raw_aio_write,
+    .bdrv_aio_readv = raw_aio_readv,
+    .bdrv_aio_writev = raw_aio_writev,
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
 #endif
 
-    .bdrv_read = raw_read,
-    .bdrv_write = raw_write,
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
 };
@@ -1018,8 +987,10 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
         open_flags |= O_NONBLOCK;
+#ifdef CONFIG_AIO
     } else if (strstart(filename, "/dev/sg", NULL)) {
         bs->sg = 1;
+#endif
     }
 #endif
 #if defined(__FreeBSD__)
@@ -1210,16 +1181,29 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
     return ioctl(s->fd, req, buf);
 }
 
+#ifdef CONFIG_AIO
 static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
+    BDRVRawState *s = bs->opaque;
     RawAIOCB *acb;
 
-    acb = raw_aio_setup(bs, 0, buf, 0, cb, opaque);
-    if (!acb)
+    if (fd_open(bs) < 0)
         return NULL;
 
+    acb = qemu_aio_get(bs, cb, opaque);
+    if (!acb)
+        return NULL;
+    acb->aiocb.aio_fildes = s->fd;
+    acb->aiocb.ev_signo = SIGUSR2;
+    acb->aiocb.aio_offset = 0;
+    acb->aiocb.aio_flags = 0;
+
+    acb->next = posix_aio_state->first_aio;
+    posix_aio_state->first_aio = acb;
+
+    acb->aiocb.aio_ioctl_buf = buf;
     acb->aiocb.aio_ioctl_cmd = req;
     if (qemu_paio_ioctl(&acb->aiocb) < 0) {
         raw_aio_remove(acb);
@@ -1228,6 +1212,7 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
 
     return &acb->common;
 }
+#endif
 
 #elif defined(__FreeBSD__)
 
@@ -1378,16 +1363,52 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
 }
 #endif /* !linux && !FreeBSD */
 
+#if defined(__linux__) || defined(__FreeBSD__)
+static int hdev_create(const char *filename, int64_t total_size,
+                       const char *backing_file, int flags)
+{
+    int fd;
+    int ret = 0;
+    struct stat stat_buf;
+
+    if (flags || backing_file)
+        return -ENOTSUP;
+
+    fd = open(filename, O_WRONLY | O_BINARY);
+    if (fd < 0)
+        return -EIO;
+
+    if (fstat(fd, &stat_buf) < 0)
+        ret = -EIO;
+    else if (!S_ISBLK(stat_buf.st_mode))
+        ret = -EIO;
+    else if (lseek(fd, 0, SEEK_END) < total_size * 512)
+        ret = -ENOSPC;
+
+    close(fd);
+    return ret;
+}
+
+#else  /* !(linux || freebsd) */
+
+static int hdev_create(const char *filename, int64_t total_size,
+                       const char *backing_file, int flags)
+{
+    return -ENOTSUP;
+}
+#endif
+
 BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_open		= hdev_open,
     .bdrv_close		= raw_close,
+    .bdrv_create        = hdev_create,
     .bdrv_flush		= raw_flush,
 
 #ifdef CONFIG_AIO
-    .bdrv_aio_read	= raw_aio_read,
-    .bdrv_aio_write	= raw_aio_write,
+    .bdrv_aio_readv	= raw_aio_readv,
+    .bdrv_aio_writev	= raw_aio_writev,
     .bdrv_aio_cancel	= raw_aio_cancel,
     .aiocb_size		= sizeof(RawAIOCB),
 #endif
@@ -1403,5 +1424,7 @@ BlockDriver bdrv_host_device = {
     .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
     .bdrv_ioctl		= raw_ioctl,
+#ifdef CONFIG_AIO
     .bdrv_aio_ioctl	= raw_aio_ioctl,
+#endif
 };
