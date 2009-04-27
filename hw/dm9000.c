@@ -883,6 +883,11 @@ static CPUWriteMemoryFunc *dm9000_writefn[] = {
     dm9000_write
 };
 
+static void dm9000_cleanup(VLANClientState *vc)
+{
+    /* dm9000_state *s = (dm9000_state *)vc->opaque; */
+}
+
 /* initialises a dm9000 ethernet controller
  * The dm9k has a single 16bit wide address and data port through which all
  *  operations are multiplexed, there is a single IRQ
@@ -915,7 +920,8 @@ void dm9000_init(NICInfo *nd, target_phys_addr_t base_addr,
     dm9000_hard_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-			dm9000_receive, dm9000_can_receive, s);
+			dm9000_receive, dm9000_can_receive,
+			dm9000_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
 }
