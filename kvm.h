@@ -48,6 +48,8 @@ int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size);
 
 int kvm_has_sync_mmu(void);
 
+void kvm_setup_guest_memory(void *start, size_t size);
+
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 
@@ -115,6 +117,11 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr,
 void kvm_arch_remove_all_hw_breakpoints(void);
 
 void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg);
+
+int kvm_check_extension(KVMState *s, unsigned int extension);
+
+uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
+                                      int reg);
 
 /* generic hooks - to be moved/refactored once there are more users */
 

@@ -810,11 +810,14 @@ PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
                                               "NE2000", sizeof(PCINE2000State),
                                               devfn,
                                               NULL, NULL);
+    if (!d)
+       return NULL;
+
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8029);
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
-    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     pci_conf[0x3d] = 1; // interrupt pin 0
 
     pci_register_io_region(&d->dev, 0, 0x100,

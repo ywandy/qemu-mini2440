@@ -159,7 +159,6 @@ strip_opt="yes"
 bigendian="no"
 mingw32="no"
 EXESUF=""
-gdbstub="yes"
 slirp="yes"
 vde="yes"
 fmod_lib=""
@@ -822,7 +821,7 @@ cat > $TMPC <<EOF
 #include <xs.h>
 int main(void) { xs_daemon_open; xc_interface_open; }
 EOF
-   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null ; then
+   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null > /dev/null ; then
       :
    else
       xen="no"
@@ -920,7 +919,7 @@ EOF
     vnc_sasl_cflags=""
     vnc_sasl_libs="-lsasl2"
     if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_sasl_cflags $TMPC \
-           $vnc_sasl_libs 2> /dev/null ; then
+           $vnc_sasl_libs 2> /dev/null > /dev/null ; then
 	:
     else
 	vnc_sasl="no"
@@ -1064,15 +1063,15 @@ fi # test "$curses"
 ##########################################
 # bluez support probe
 if test "$bluez" = "yes" ; then
-  `pkg-config bluez` || bluez="no"
+  `pkg-config bluez 2> /dev/null` || bluez="no"
 fi
 if test "$bluez" = "yes" ; then
   cat > $TMPC << EOF
 #include <bluetooth/bluetooth.h>
 int main(void) { return bt_error(0); }
 EOF
-  bluez_cflags=`pkg-config --cflags bluez`
-  bluez_libs=`pkg-config --libs bluez`
+  bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
+  bluez_libs=`pkg-config --libs bluez 2> /dev/null`
   if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $bluez_cflags $TMPC \
       $bluez_libs > /dev/null 2> /dev/null ; then
     :
@@ -1140,7 +1139,7 @@ cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_mutex_t lock;  return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $PTHREADLIBS $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $PTHREADLIBS $TMPC 2> /dev/null > /dev/null ; then
     pthread=yes
     PTHREADLIBS="-lpthread"
   fi
@@ -1184,7 +1183,7 @@ if test "$fdt" = "yes" ; then
     cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lfdt 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lfdt 2> /dev/null > /dev/null ; then
     fdt=yes
   fi
 fi
@@ -1209,7 +1208,7 @@ main(void)
 	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
     atfile=yes
   fi
 fi
@@ -1231,7 +1230,7 @@ main(void)
 	return inotify_init();
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
     inotify=yes
   fi
 fi
@@ -1525,10 +1524,6 @@ fi
 if test -n "$sparc_cpu"; then
   echo "CONFIG__sparc_${sparc_cpu}__=yes" >> $config_mak
   echo "#define __sparc_${sparc_cpu}__ 1" >> $config_h
-fi
-if test "$gdbstub" = "yes" ; then
-  echo "CONFIG_GDBSTUB=yes" >> $config_mak
-  echo "#define CONFIG_GDBSTUB 1" >> $config_h
 fi
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> $config_mak

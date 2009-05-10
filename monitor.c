@@ -27,6 +27,7 @@
 #include "hw/pcmcia.h"
 #include "hw/pc.h"
 #include "hw/pci.h"
+#include "hw/watchdog.h"
 #include "gdbstub.h"
 #include "net.h"
 #include "qemu-char.h"
@@ -580,7 +581,6 @@ static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
     }
 }
 
-#ifdef CONFIG_GDBSTUB
 static void do_gdbserver(Monitor *mon, const char *device)
 {
     if (!device)
@@ -595,7 +595,13 @@ static void do_gdbserver(Monitor *mon, const char *device)
                        device);
     }
 }
-#endif
+
+static void do_watchdog_action(Monitor *mon, const char *action)
+{
+    if (select_watchdog_action(action) == -1) {
+        monitor_printf(mon, "Unknown watchdog action '%s'\n", action);
+    }
+}
 
 static void monitor_printc(Monitor *mon, int c)
 {
@@ -1684,10 +1690,8 @@ static const mon_cmd_t mon_cmds[] = {
       "", "stop emulation", },
     { "c|cont", "", do_cont,
       "", "resume emulation", },
-#ifdef CONFIG_GDBSTUB
     { "gdbserver", "s?", do_gdbserver,
       "[device]", "start gdbserver on given device (default 'tcp::1234'), stop with 'none'", },
-#endif
     { "x", "/l", do_memory_dump,
       "/fmt addr", "virtual memory dump starting at 'addr'", },
     { "xp", "/l", do_physical_memory_dump,
@@ -1762,6 +1766,8 @@ static const mon_cmd_t mon_cmds[] = {
       "target", "request VM to change it's memory allocation (in MB)" },
     { "set_link", "ss", do_set_link,
       "name up|down", "change the link status of a network adapter" },
+    { "watchdog_action", "s", do_watchdog_action,
+      "[reset|shutdown|poweroff|pause|debug|none]", "change watchdog action" },
     { "acl", "sss?i?", do_acl, "<command> <aclname> [<match> [<index>]]\n",
                                "acl show vnc.username\n"
                                "acl policy vnc.username deny\n"

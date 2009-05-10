@@ -620,7 +620,7 @@ void net_slirp_redir(Monitor *mon, const char *redir_str)
     errmsg = "invalid redirection format\n";
  fail:
     if (mon) {
-        monitor_printf(mon, errmsg);
+        monitor_printf(mon, "%s", errmsg);
     } else {
         fprintf(stderr, "qemu: %s", errmsg);
         exit(1);
@@ -1103,7 +1103,7 @@ static void vde_to_qemu(void *opaque)
     uint8_t buf[4096];
     int size;
 
-    size = vde_recv(s->vde, buf, sizeof(buf), 0);
+    size = vde_recv(s->vde, (char *)buf, sizeof(buf), 0);
     if (size > 0) {
         qemu_send_packet(s->vc, buf, size);
     }
@@ -1114,7 +1114,7 @@ static void vde_from_qemu(void *opaque, const uint8_t *buf, int size)
     VDEState *s = opaque;
     int ret;
     for(;;) {
-        ret = vde_send(s->vde, buf, size, 0);
+        ret = vde_send(s->vde, (const char *)buf, size, 0);
         if (ret < 0 && errno == EINTR) {
         } else {
             break;
@@ -1145,7 +1145,7 @@ static int net_vde_init(VLANState *vlan, const char *model,
     };
 
     s = qemu_mallocz(sizeof(VDEState));
-    s->vde = vde_open(init_sock, "QEMU", &args);
+    s->vde = vde_open(init_sock, (char *)"QEMU", &args);
     if (!s->vde){
         free(s);
         return -1;
@@ -1791,7 +1791,7 @@ int net_client_init(const char *device, const char *p)
         uint8_t *macaddr;
         int idx = nic_get_free_idx();
 
-        if (check_params(buf, sizeof(buf), nic_params, p) < 0) {
+        if (check_params(nic_params, p) < 0) {
             fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                     buf, p);
             return -1;
@@ -1842,7 +1842,7 @@ int net_client_init(const char *device, const char *p)
         static const char * const slirp_params[] = {
             "vlan", "name", "hostname", "restrict", "ip", NULL
         };
-        if (check_params(buf, sizeof(buf), slirp_params, p) < 0) {
+        if (check_params(slirp_params, p) < 0) {
             fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                     buf, p);
             return -1;
@@ -1893,7 +1893,7 @@ int net_client_init(const char *device, const char *p)
         };
         char ifname[64];
 
-        if (check_params(buf, sizeof(buf), tap_params, p) < 0) {
+        if (check_params(tap_params, p) < 0) {
             fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                     buf, p);
             return -1;
@@ -1914,7 +1914,7 @@ int net_client_init(const char *device, const char *p)
         int fd;
         vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
-            if (check_params(buf, sizeof(buf), fd_params, p) < 0) {
+            if (check_params(fd_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                         buf, p);
                 return -1;
@@ -1927,7 +1927,7 @@ int net_client_init(const char *device, const char *p)
             static const char * const tap_params[] = {
                 "vlan", "name", "ifname", "script", "downscript", NULL
             };
-            if (check_params(buf, sizeof(buf), tap_params, p) < 0) {
+            if (check_params(tap_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                         buf, p);
                 return -1;
@@ -1948,7 +1948,7 @@ int net_client_init(const char *device, const char *p)
     if (!strcmp(device, "socket")) {
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             int fd;
-            if (check_params(buf, sizeof(buf), fd_params, p) < 0) {
+            if (check_params(fd_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                         buf, p);
                 return -1;
@@ -1961,7 +1961,7 @@ int net_client_init(const char *device, const char *p)
             static const char * const listen_params[] = {
                 "vlan", "name", "listen", NULL
             };
-            if (check_params(buf, sizeof(buf), listen_params, p) < 0) {
+            if (check_params(listen_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                         buf, p);
                 return -1;
@@ -1971,7 +1971,7 @@ int net_client_init(const char *device, const char *p)
             static const char * const connect_params[] = {
                 "vlan", "name", "connect", NULL
             };
-            if (check_params(buf, sizeof(buf), connect_params, p) < 0) {
+            if (check_params(connect_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                         buf, p);
                 return -1;
@@ -1981,7 +1981,7 @@ int net_client_init(const char *device, const char *p)
             static const char * const mcast_params[] = {
                 "vlan", "name", "mcast", NULL
             };
-            if (check_params(buf, sizeof(buf), mcast_params, p) < 0) {
+            if (check_params(mcast_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                         buf, p);
                 return -1;
@@ -2002,7 +2002,7 @@ int net_client_init(const char *device, const char *p)
         char vde_sock[1024], vde_group[512];
 	int vde_port, vde_mode;
 
-        if (check_params(buf, sizeof(buf), vde_params, p) < 0) {
+        if (check_params(vde_params, p) < 0) {
             fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
                     buf, p);
             return -1;
@@ -2085,7 +2085,7 @@ void net_host_device_add(Monitor *mon, const char *device, const char *opts)
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
     }
-    if (net_client_init(device, opts ? : "") < 0) {
+    if (net_client_init(device, opts ? opts : "") < 0) {
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
