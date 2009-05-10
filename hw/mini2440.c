@@ -252,9 +252,9 @@ static void mini2440_reset(void *opaque)
 	 * if a u--boot is available as a file, we always use it
 	 */
 	{
-	    image_size = load_image("mini2440/u-boot.bin", phys_ram_base + 0x03f80000);
+	    image_size = load_image("mini2440/u-boot.bin", qemu_get_ram_ptr(0x03f80000));
 	    if (image_size < 0)
-		    image_size = load_image("u-boot.bin", phys_ram_base + 0x03f80000);
+		    image_size = load_image("u-boot.bin", qemu_get_ram_ptr(0x03f80000));
 	   	if (image_size > 0) {
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
@@ -266,7 +266,7 @@ static void mini2440_reset(void *opaque)
 	 * if a kernel was explicitly specified, we load it too
 	 */
 	if (s->kernel) {
-	   	image_size = load_image(s->kernel, phys_ram_base + 0x02000000);
+	   	image_size = load_image(s->kernel, qemu_get_ram_ptr(0x02000000));
 	   	if (image_size > 0) {
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
@@ -353,6 +353,6 @@ QEMUMachine mini2440_machine = {
     "mini2440",
     "MINI2440 Chinese Samsung SoC dev board (S3C2440A)",
     .init = mini2440_init,
-    .ram_require = (0x04000000 + S3C_SRAM_SIZE) | RAMSIZE_FIXED
+/*    .ram_require = (0x04000000 + S3C_SRAM_SIZE) | RAMSIZE_FIXED */
 };
 

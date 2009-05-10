@@ -186,8 +186,10 @@ static void s3c_lcd_write(void *opaque, target_phys_addr_t addr,
         break;
     case S3C_LCDSADDR1:
         s->saddr[0] = value;
-        s->fb = phys_ram_base +
-                (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE);
+/*        s->fb = phys_ram_base +
+                (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE); */
+        s->fb = qemu_get_ram_ptr(
+                (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE));
         s->invalidate = 1;
         break;
     case S3C_LCDSADDR2:
@@ -416,7 +418,8 @@ static void s3c_update_display(void *opaque)
     dest = ds_get_data(s->ds);
     dest_width = s->width * s->dest_width;
 
-    addr = (ram_addr_t) (s->fb - (void *) phys_ram_base);
+/*    addr = (ram_addr_t) (s->fb - (void *) phys_ram_base); */
+    addr = qemu_ram_addr_from_host(s->fb);
     start = addr + s->height * src_width;
     end = addr;
     dirty[0] = dirty[1] = cpu_physical_memory_get_dirty(start, VGA_DIRTY_FLAG);
@@ -521,7 +524,8 @@ static int s3c_lcd_load(QEMUFile *f, void *opaque, int version_id)
     s->enable = s->con[0] & 1;
     s->msb = (s->con[4] >> 12) & 1;
     s->frm565 = (s->con[4] >> 11) & 1;
-    s->fb = phys_ram_base + (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE);
+/*    s->fb = phys_ram_base + (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE); */
+    s->fb = qemu_get_ram_ptr((((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE));
 
     for (i = 0; i < 0x100; i ++)
         qemu_get_be16s(f, &s->raw_pal[i]);
