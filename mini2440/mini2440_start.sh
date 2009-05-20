@@ -16,8 +16,6 @@ if [ ! -f "$name_snapshots" ]; then
 	qemu-img create "$name_snapshots" 100MB
 fi
 
-# remove old socket
-rm -rf .mini2440_monitor
 
 cmd="$base/../arm-softmmu/qemu-system-arm \
 	-M mini2440 $* \
@@ -31,6 +29,7 @@ cmd="$base/../arm-softmmu/qemu-system-arm \
 	-net tap,vlan=0,ifname=tap0 \
 	-monitor telnet::5555,server,nowait"
 
+# cmd="gdbserver :3333 $cmd"
 #	-monitor unix:.mini2440_monitor,server,nowait"
 
 echo $cmd

@@ -16,14 +16,14 @@ struct s3c2440_nand_s {
 
     /* NAND Flash controller */
     target_phys_addr_t nand_base;
-    struct nand_flash_s *nand;
+    NANDFlashState *nand;
 
     uint16_t nfconf;
     uint16_t nfcont;
     uint8_t nfcmd;
     uint32_t nfaddr;
-    struct ecc_state_s nfecc;
-    struct ecc_state_s nfsecc;	/* spare area */
+    ECCState nfecc;
+    ECCState nfsecc;	/* spare area */
     int nfwp;
 
     uint32_t nfaddr_cur;
@@ -307,7 +307,7 @@ static void s3c2440_nand_write32(void *opaque, target_phys_addr_t addr,
 	}
 }
 
-static void s3c2440_nand_register(void * opaque, struct nand_flash_s *chip)
+static void s3c2440_nand_register(void * opaque, NANDFlashState *chip)
 {
     struct s3c2440_nand_s *s = (struct s3c2440_nand_s *) opaque;
     s->nand = chip;

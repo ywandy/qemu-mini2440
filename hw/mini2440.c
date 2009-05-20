@@ -23,7 +23,7 @@
 #include "eeprom24c0x.h"
 
 #define mini2440_printf(format, ...)	\
-    fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
+    fprintf(stderr, "QEMU %s: " format, __FUNCTION__, ##__VA_ARGS__)
 
 #define MINI2440_GPIO_BACKLIGHT		S3C_GPG(4)
 #define MINI2440_GPIO_LCD_RESET		S3C_GPC(6)
@@ -35,18 +35,13 @@
 #define MINI2440_IRQ_nSD_DETECT		S3C_EINT(16)
 #define MINI2440_IRQ_DM9000			S3C_EINT(7)
 
-/*
-#define MINI2440_GPIO_SDMMC_ON		S3C_GPB(2)
-#define MINI2440_GPIO_USB_ATTACH	S3C_GPB(10)
-*/
-
 struct mini2440_board_s {
     struct s3c_state_s *cpu;
     unsigned int ram;
     struct ee24c08_s * eeprom;
     const char * kernel;
     SDState * mmc;
-    struct nand_flash_s *nand;
+    NANDFlashState *nand;
     int bl_level;
 };
 
@@ -56,22 +51,25 @@ struct mini2440_board_s {
  * and keep track of which one was used to set the read/write pointer into the data
  */
 struct ee24c08_s;
-struct ee24c08_slave_s {
-	i2c_slave slave;
+typedef struct ee24cxx_page_s {
+	i2c_slave i2c;
 	struct ee24c08_s * eeprom;
 	uint8_t page;
-};
-struct ee24c08_s {
+} ee24cxx_page_s;
+typedef struct ee24c08_s {
 	/* that memory takes 4 addresses */
-	struct ee24c08_slave_s * slave[4];
+	i2c_slave * slave[4];
 	uint16_t ptr;
 	uint16_t count;
 	uint8_t data[1024];
-};
+} ee24c08;
 
 static void ee24c08_event(i2c_slave *i2c, enum i2c_event event)
 {
-    struct ee24c08_slave_s *s = (struct ee24c08_slave_s *) i2c;
+    ee24cxx_page_s *s = FROM_I2C_SLAVE(ee24cxx_page_s, i2c);
+
+    if (!s->eeprom)
+    	return;
 
     s->eeprom->ptr = s->page * 256;
     s->eeprom->count = 0;
@@ -79,12 +77,15 @@ static void ee24c08_event(i2c_slave *i2c, enum i2c_event event)
 
 static int ee24c08_tx(i2c_slave *i2c, uint8_t data)
 {
-    struct ee24c08_slave_s *s = (struct ee24c08_slave_s *) i2c;
+    ee24cxx_page_s *s = FROM_I2C_SLAVE(ee24cxx_page_s, i2c);
+
+    if (!s->eeprom)
+    	return 0;
     if (s->eeprom->count++ == 0) {
     	/* first byte is address offset */
         s->eeprom->ptr = (s->page * 256) + data;
     } else {
-    	printf("%s: write %04x=%02x\n", __FUNCTION__, s->eeprom->ptr, data);
+    	mini2440_printf("write %04x=%02x\n", s->eeprom->ptr, data);
     	s->eeprom->data[s->eeprom->ptr] = data;
         s->eeprom->ptr = (s->eeprom->ptr & ~0xff) | ((s->eeprom->ptr + 1) & 0xff);
         s->eeprom->count++;
@@ -94,8 +95,12 @@ static int ee24c08_tx(i2c_slave *i2c, uint8_t data)
 
 static int ee24c08_rx(i2c_slave *i2c)
 {
-    struct ee24c08_slave_s *s = (struct ee24c08_slave_s *) i2c;
-    uint8_t res =  s->eeprom->data[s->eeprom->ptr];
+    ee24cxx_page_s *s = FROM_I2C_SLAVE(ee24cxx_page_s, i2c);
+    uint8_t res;
+    if (!s->eeprom)
+    	return 0;
+
+    res =  s->eeprom->data[s->eeprom->ptr];
 
     s->eeprom->ptr = (s->eeprom->ptr & ~0xff) | ((s->eeprom->ptr + 1) & 0xff);
     s->eeprom->count++;
@@ -112,7 +117,7 @@ static void ee24c08_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, s->data, sizeof(s->data));
 
 	for (i = 0; i < 4; i++)
-		i2c_slave_save(f, &s->slave[i]->slave);
+		i2c_slave_save(f, s->slave[i]);
 }
 
 static int ee24c08_load(QEMUFile *f, void *opaque, int version_id)
@@ -125,36 +130,56 @@ static int ee24c08_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer(f, s->data, sizeof(s->data));
 
 	for (i = 0; i < 4; i++)
-		i2c_slave_load(f, &s->slave[i]->slave);
+		i2c_slave_load(f, s->slave[i]);
     return 0;
 }
 
-static struct ee24c08_s * ee24c08_init(i2c_bus *bus)
+static void ee24c08_page_init(i2c_slave *i2c)
 {
-    struct ee24c08_s *s = (struct ee24c08_s *)
-            qemu_mallocz(sizeof(struct ee24c08_s));
+	/* nothing to do here */
+}
+
+static I2CSlaveInfo ee24c08_info = {
+    .init = ee24c08_page_init,
+    .event = ee24c08_event,
+    .recv = ee24c08_rx,
+    .send = ee24c08_tx
+};
+
+static void ee24c08_register_devices(void)
+{
+    i2c_register_slave("24C08", sizeof(ee24cxx_page_s), &ee24c08_info);
+}
+
+device_init(ee24c08_register_devices);
+
+static ee24c08 * ee24c08_init(i2c_bus * bus)
+{
+	ee24c08 *s = qemu_malloc(sizeof(ee24c08));
 	int i = 0;
+
+	printf("QEMU: %s\n", __FUNCTION__);
+
 	memset(s->data, 0xff, sizeof(s->data));
 
 	for (i = 0; i < 4; i++) {
-		struct ee24c08_slave_s * ss = (struct ee24c08_slave_s *)
-			i2c_slave_init(bus, 0x50 + i, sizeof(struct ee24c08_slave_s));
-		ss->slave.event = ee24c08_event;
-		ss->slave.recv = ee24c08_rx;
-		ss->slave.send = ee24c08_tx;
+		DeviceState *dev = i2c_create_slave(bus, "24C08", 0x50 + i);
+		if (!dev) {
+			mini2440_printf("failed address %02x\n", 0x50+i);
+		}
+		s->slave[i] = I2C_SLAVE_FROM_QDEV(dev);
+		ee24cxx_page_s *ss = FROM_I2C_SLAVE(ee24cxx_page_s, s->slave[i]);
 		ss->page = i;
 		ss->eeprom = s;
-		s->slave[i] = ss;
 	}
     register_savevm("ee24c08", -1, 0, ee24c08_save, ee24c08_load, s);
-	return s;
+    return s;
 }
-
 
 /* Handlers for output ports */
 static void mini2440_bl_switch(void *opaque, int line, int level)
 {
-	printf("%s: LCD Backlight now %s (%d).\n", __FUNCTION__, level ? "on" : "off", level);
+	printf("QEMU: %s: LCD Backlight now %s (%d).\n", __FUNCTION__, level ? "on" : "off", level);
 }
 
 static void mini2440_bl_intensity(int line, int level, void *opaque)
@@ -205,7 +230,7 @@ static void hexdump(const void* address, uint32_t len)
 }
 #endif
 
-static int mini2440_load_from_nand(struct nand_flash_s *nand,
+static int mini2440_load_from_nand(NANDFlashState *nand,
 		uint32_t nand_offset, uint32_t s3c_base_offset, uint32_t size)
 {
 	uint8_t buffer[512];
@@ -220,7 +245,7 @@ static int mini2440_load_from_nand(struct nand_flash_s *nand,
 		if (nand_readraw(nand, nand_offset + src, buffer, 512)) {
 			cpu_physical_memory_write(s3c_base_offset + dst, buffer, 512);
 		} else {
-			fprintf(stderr, "%s: failed to load nand %d:%d\n", __FUNCTION__,
+			mini2440_printf("failed to load nand %d:%d\n",
 			        nand_offset + src, 512 + 16);
 			return 0;
 		}
@@ -239,13 +264,13 @@ static void mini2440_reset(void *opaque)
 	 * it from nand directly relocated to 0x33f80000 and jump there
 	 */
 	if (mini2440_load_from_nand(s->nand, 0, S3C_RAM_BASE | 0x03f80000, 256*1024)> 0) {
-		fprintf(stderr, "%s: loaded default u-boot from NAND\n", __FUNCTION__);
+		mini2440_printf("loaded default u-boot from NAND\n");
 		s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000; /* start address, u-boot already relocated */
 	}
 #if 0 && defined(LATER)
 	if (mini2440_load_from_nand(s->nand, 0, S3C_SRAM_BASE_NANDBOOT, S3C_SRAM_SIZE) > 0) {
 	    s->cpu->env->regs[15] = S3C_SRAM_BASE_NANDBOOT;	/* start address, u-boot relocating code */
-	    fprintf(stderr, "%s: 4KB SteppingStone loaded from NAND\n", __FUNCTION__);
+	    mini2440_printf("4KB SteppingStone loaded from NAND\n");
 	}
 #endif
 	/*
@@ -258,7 +283,7 @@ static void mini2440_reset(void *opaque)
 	   	if (image_size > 0) {
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
-	        fprintf(stderr, "%s: loaded override u-boot (size %x)\n", __FUNCTION__, image_size);
+	   		mini2440_printf("loaded override u-boot (size %x)\n", image_size);
 		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	/* start address, u-boot already relocated */
 	   	}
 	}
@@ -270,7 +295,7 @@ static void mini2440_reset(void *opaque)
 	   	if (image_size > 0) {
 	   		if (image_size & (512 -1))	/* round size to a NAND block size */
 	   			image_size = (image_size + 512) & ~(512-1);
-	        fprintf(stderr, "%s: loaded %s (size %x)\n", __FUNCTION__, s->kernel, image_size);
+	   		mini2440_printf("loaded %s (size %x)\n", s->kernel, image_size);
 	    }
 	}
 }
@@ -295,12 +320,12 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
 
     /* Setup CPU & memory */
     if (ram_size < s->ram + S3C_SRAM_SIZE) {
-        fprintf(stderr, "This platform requires %i bytes of memory (not %d)\n",
+    	mini2440_printf("This platform requires %i bytes of memory (not %d)\n",
                         s->ram + S3C_SRAM_SIZE, ram_size);
         exit(1);
     }
     if (cpu_model && strcmp(cpu_model, "arm920t")) {
-        fprintf(stderr, "This platform requires an ARM920T core\n");
+    	mini2440_printf("This platform requires an ARM920T core\n");
         exit(2);
     }
     s->cpu = s3c24xx_init(S3C_CPU_2440, 12000000 /* 12 mhz */, s->ram, S3C_SRAM_BASE_NANDBOOT, s->mmc);
@@ -328,10 +353,13 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     return s;
 }
 
-static void mini2440_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+
+static void mini2440_init(ram_addr_t ram_size,
+        const char *boot_device,
+        const char *kernel_filename,
+        const char *kernel_cmdline,
+        const char *initrd_filename,
+        const char *cpu_model)
 {
     struct mini2440_board_s *mini;
     int sd_idx = drive_get_index(IF_SD, 0, 0);
@@ -353,6 +381,5 @@ QEMUMachine mini2440_machine = {
     "mini2440",
     "MINI2440 Chinese Samsung SoC dev board (S3C2440A)",
     .init = mini2440_init,
-/*    .ram_require = (0x04000000 + S3C_SRAM_SIZE) | RAMSIZE_FIXED */
 };
 

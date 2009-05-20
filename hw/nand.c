@@ -319,7 +319,7 @@ static int nand_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-uint32_t nand_readraw(struct nand_flash_s *s, uint32_t offset, void * dst, uint32_t length)
+uint32_t nand_readraw(NANDFlashState *s, uint32_t offset, void * dst, uint32_t length)
 {
 	if (s->bdrv) {
         if (bdrv_pread(s->bdrv, offset, dst, length) == -1) {

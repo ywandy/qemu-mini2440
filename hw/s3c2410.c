@@ -11,7 +11,6 @@
 #include "s3c.h"
 #include "qemu-timer.h"
 #include "qemu-char.h"
-#include "hw.h"
 #include "console.h"
 #include "devices.h"
 #include "arm-misc.h"
@@ -1787,7 +1786,8 @@ void s3c_adc_setscale(struct s3c_adc_state_s *adc, const int m[])
 }
 
 /* IIC-bus serial interface */
-struct s3c_i2c_state_s {
+typedef struct s3c_i2c_state_s {
+	SysBusDevice busdev;
     i2c_slave slave;
     i2c_bus *bus;
     target_phys_addr_t base;
@@ -1800,7 +1800,7 @@ struct s3c_i2c_state_s {
     uint8_t mmaster;
     int busy;
     int newstart;
-};
+} s3c_i2c_state_s;
 
 static void s3c_i2c_irq(struct s3c_i2c_state_s *s)
 {
@@ -2021,28 +2021,27 @@ static int s3c_i2c_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct s3c_i2c_state_s *s3c_i2c_init(target_phys_addr_t base, qemu_irq irq)
+//struct s3c_i2c_state_s *s3c_i2c_init(target_phys_addr_t base, qemu_irq irq)
+void s3c_i2c_init(SysBusDevice * dev)
 {
     int iomemtype;
-    struct s3c_i2c_state_s *s = (struct s3c_i2c_state_s *)
-            qemu_mallocz(sizeof(struct s3c_i2c_state_s));
-
-    s->base = base;
-    s->irq = irq;
+    struct s3c_i2c_state_s *s = FROM_SYSBUS(struct s3c_i2c_state_s, dev);
+#if 0
     s->slave.event = s3c_i2c_event;
     s->slave.send = s3c_i2c_tx;
     s->slave.recv = s3c_i2c_rx;
+#endif
     s->bus = i2c_init_bus();
+    sysbus_init_irq(dev, &s->irq);
+    qdev_attach_child_bus(&dev->qdev, "i2c", s->bus);
 
     s3c_i2c_reset(s);
 
     iomemtype = cpu_register_io_memory(0, s3c_i2c_readfn,
                     s3c_i2c_writefn, s);
-    cpu_register_physical_memory(s->base, 0xffffff, iomemtype);
+    sysbus_init_mmio(dev, 0xffffff, iomemtype);
 
     register_savevm("s3c24xx_i2c", 0, 0, s3c_i2c_save, s3c_i2c_load, s);
-
-    return s;
 }
 
 i2c_bus *s3c_i2c_bus(struct s3c_i2c_state_s *s)
@@ -2837,7 +2836,13 @@ struct s3c_state_s *s3c24xx_init(
 
     s->wdt = s3c_wdt_init(&s->clock, 0x53000000, s->irq[S3C_PIC_WDT]);
 
-    s->i2c = s3c_i2c_init(0x54000000, s->irq[S3C_PIC_IIC]);
+    {
+    //	s->i2c = NULL;
+    	DeviceState * dev;
+    	dev = sysbus_create_simple("s3c-i2c", 0x54000000, s->irq[S3C_PIC_IIC]);
+    	s->i2c = FROM_SYSBUS(s3c_i2c_state_s, dev);
+    }
+    /* s->i2c = s3c_i2c_init(0x54000000, s->irq[S3C_PIC_IIC]); */
 
     s->i2s = s3c_i2s_init(0x55000000, s->drq);
 
@@ -2867,3 +2872,11 @@ struct s3c_state_s *s3c24xx_init(
     s3c_gpio_setpwrstat(s->io, 1);
     return s;
 }
+
+
+static void s3c_register_devices(void)
+{
+    sysbus_register_dev("s3c-i2c", sizeof(s3c_i2c_state_s), s3c_i2c_init);
+}
+
+device_init(s3c_register_devices);

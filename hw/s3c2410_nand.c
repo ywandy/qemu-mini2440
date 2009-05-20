@@ -16,11 +16,11 @@ struct s3c2410_nand_s {
 
     /* NAND Flash controller */
     target_phys_addr_t nand_base;
-    struct nand_flash_s *nand;
+    NANDFlashState *nand;
     uint16_t nfconf;
     uint8_t nfcmd;
     uint8_t nfaddr;
-    struct ecc_state_s nfecc;
+    ECCState nfecc;
     int nfwp;
 };
 

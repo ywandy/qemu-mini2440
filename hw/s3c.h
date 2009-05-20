@@ -9,9 +9,10 @@
 #ifndef S3C_H
 # define S3C_H	"s3c.h"
 
-# include "qemu-common.h"
-# include "flash.h"
-# include "sd.h"
+#include "qemu-common.h"
+#include "flash.h"
+#include "sd.h"
+#include "sysbus.h"
 
 #define S3C_CPU_2410	0x32410002
 #define S3C_CPU_2440	0x32440001
@@ -137,7 +138,8 @@ struct s3c_adc_state_s *s3c_adc_init(target_phys_addr_t base, qemu_irq irq,
 void s3c_adc_setscale(struct s3c_adc_state_s *adc, const int m[]);
 
 struct s3c_i2c_state_s;
-struct s3c_i2c_state_s *s3c_i2c_init(target_phys_addr_t base, qemu_irq irq);
+//struct s3c_i2c_state_s *s3c_i2c_init(target_phys_addr_t base, qemu_irq irq);
+void s3c_i2c_init(SysBusDevice * dev);
 i2c_bus *s3c_i2c_bus(struct s3c_i2c_state_s *s);
 
 struct s3c_i2s_state_s;
@@ -182,7 +184,7 @@ void s3c_udc_reset(struct s3c_udc_state_s *s);
 struct s3c_nand_driver_s {
 	void (*reset)(void * opaque);
 	void (*setwp)(void * opaque, int wp);
-	void (*reg)(void * opaque, struct nand_flash_s *chip);
+	void (*reg)(void * opaque, NANDFlashState *chip);
 };
 
 /* s3c2410_nand.c */
