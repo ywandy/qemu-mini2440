@@ -199,7 +199,6 @@ static IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
    to store the VM snapshots */
 DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
-static int vga_ram_size;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 int nographic;
@@ -2566,6 +2565,8 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     case IF_MTD:
     case IF_VIRTIO:
         break;
+    case IF_COUNT:
+        abort();
     }
     if (!file[0])
         return -2;
@@ -2856,11 +2857,11 @@ void usb_info(Monitor *mon)
 /* PCMCIA/Cardbus */
 
 static struct pcmcia_socket_entry_s {
-    struct pcmcia_socket_s *socket;
+    PCMCIASocket *socket;
     struct pcmcia_socket_entry_s *next;
 } *pcmcia_sockets = 0;
 
-void pcmcia_socket_register(struct pcmcia_socket_s *socket)
+void pcmcia_socket_register(PCMCIASocket *socket)
 {
     struct pcmcia_socket_entry_s *entry;
 
@@ -2870,7 +2871,7 @@ void pcmcia_socket_register(struct pcmcia_socket_s *socket)
     pcmcia_sockets = entry;
 }
 
-void pcmcia_socket_unregister(struct pcmcia_socket_s *socket)
+void pcmcia_socket_unregister(PCMCIASocket *socket)
 {
     struct pcmcia_socket_entry_s *entry, **ptr;
 
@@ -4875,7 +4876,6 @@ int main(int argc, char **argv, char **envp)
     cpu_model = NULL;
     initrd_filename = NULL;
     ram_size = 0;
-    vga_ram_size = VGA_RAM_SIZE;
     snapshot = 0;
     nographic = 0;
     curses = 0;
@@ -5737,7 +5737,7 @@ int main(int argc, char **argv, char **envp)
     /* FIXME: This is a nasty hack because kqemu can't cope with dynamic
        guest ram allocation.  It needs to go away.  */
     if (kqemu_allowed) {
-        kqemu_phys_ram_size = ram_size + VGA_RAM_SIZE + 4 * 1024 * 1024;
+        kqemu_phys_ram_size = ram_size + 8 * 1024 * 1024 + 4 * 1024 * 1024;
         kqemu_phys_ram_base = qemu_vmalloc(kqemu_phys_ram_size);
         if (!kqemu_phys_ram_base) {
             fprintf(stderr, "Could not allocate physical memory\n");
@@ -5898,7 +5898,9 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    machine->init(ram_size, vga_ram_size, boot_devices,
+    module_call_init(MODULE_INIT_DEVICE);
+
+    machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
 
