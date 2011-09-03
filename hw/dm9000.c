@@ -331,15 +331,16 @@ static void dm9000_soft_reset(dm9000_state *s)
 {
     DM9000_DBF("DM9000: Soft Reset\n");
     s->dm9k_txpl = 0;
-    s->dm9k_mwr = s->dm9k_trpa = DM9K_TX_FIFO_START;
-    s->dm9k_mrr = s->dm9k_rwpa = DM9K_RX_FIFO_START;
+    s->dm9k_mrr = s->dm9k_mwr = 0;
+    s->dm9k_trpa = 0;
+    s->dm9k_rwpa = DM9K_RX_FIFO_START;
     s->dm9k_imr = 0;
     s->dm9k_isr = 0; /* 16 bit mode, no interrupts asserted */
     s->dm9k_tcr = 0;
     s->dm9k_rcr = 0;
     s->dm9k_rsr = 0;
-    s->fcr = 0;
-    s->fctr = (3 << 4) | (8 << 0);	// flow control high/low marks
+    s->fcr = 0x38;
+    s->fctr = (3 << 4) | (7 << 0);	// flow control high/low marks
     s->fc_high_mark = 3 * 1024;
     s->fc_low_mark = 8 * 1024;
 
@@ -374,7 +375,7 @@ static void dm9000_hard_reset(dm9000_state *s)
 static uint16_t dm9000_get_rx_fifo_fill_state(dm9000_state *s)
 {
 	uint16_t res;
-	if (s->dm9k_mrr > s->dm9k_rwpa)
+	if (s->dm9k_mrr >= s->dm9k_rwpa)
 		res = (DM9K_FIFO_SIZE-s->dm9k_rwpa) + (s->dm9k_mrr-DM9K_RX_FIFO_START);
 	else
 		res = s->dm9k_rwpa - s->dm9k_mrr;
