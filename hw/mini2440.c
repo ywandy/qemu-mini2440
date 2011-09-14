@@ -256,7 +256,7 @@ static int mini2440_load_from_nand(NANDFlashState *nand,
 static void mini2440_reset(void *opaque)
 {
     struct mini2440_board_s *s = (struct mini2440_board_s *) opaque;
-    uint32_t image_size;
+    int32_t image_size;
 
 	/*
 	 * Normally we would load 4 KB of nand to SRAM and jump there, but
