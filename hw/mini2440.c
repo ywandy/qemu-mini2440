@@ -35,6 +35,10 @@
 #define MINI2440_IRQ_nSD_DETECT		S3C_EINT(16)
 #define MINI2440_IRQ_DM9000			S3C_EINT(7)
 
+#define BOOT_NONE	0
+#define BOOT_NOR	1
+#define BOOT_NAND	2
+
 struct mini2440_board_s {
     struct s3c_state_s *cpu;
     unsigned int ram;
@@ -43,6 +47,7 @@ struct mini2440_board_s {
     SDState * mmc;
     NANDFlashState *nand;
     int bl_level;
+    int boot_mode;
 };
 
 /*
@@ -258,6 +263,9 @@ static void mini2440_reset(void *opaque)
     struct mini2440_board_s *s = (struct mini2440_board_s *) opaque;
     int32_t image_size;
 
+    s->cpu->env->regs[15] = 0;
+
+    if (s->boot_mode == BOOT_NAND) {
 	/*
 	 * Normally we would load 4 KB of nand to SRAM and jump there, but
 	 * it is not working perfectly as expected, so we cheat and load
@@ -273,6 +281,7 @@ static void mini2440_reset(void *opaque)
 	    mini2440_printf("4KB SteppingStone loaded from NAND\n");
 	}
 #endif
+
 	/*
 	 * if a u--boot is available as a file, we always use it
 	 */
@@ -287,6 +296,7 @@ static void mini2440_reset(void *opaque)
 		    s->cpu->env->regs[15] = S3C_RAM_BASE | 0x03f80000;	/* start address, u-boot already relocated */
 	   	}
 	}
+    }
 	/*
 	 * if a kernel was explicitly specified, we load it too
 	 */
@@ -298,6 +308,7 @@ static void mini2440_reset(void *opaque)
 	   		mini2440_printf("loaded %s (size %x)\n", s->kernel, image_size);
 	    }
 	}
+
 }
 
 /* Typical touchscreen calibration values */
@@ -307,12 +318,12 @@ static const int mini2440_ts_scale[6] = {
 };
 
 /* Board init.  */
-static struct mini2440_board_s *mini2440_init_common(int ram_size,
+static struct mini2440_board_s *mini2440_init_common(struct mini2440_board_s *s,
+		int ram_size,
                 const char *kernel_filename, const char *cpu_model,
                 SDState *mmc)
 {
-    struct mini2440_board_s *s = (struct mini2440_board_s *)
-            qemu_mallocz(sizeof(struct mini2440_board_s));
+    uint32_t sram_base;
 
     s->ram = 0x04000000;
     s->kernel = kernel_filename;
@@ -328,7 +339,13 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     	mini2440_printf("This platform requires an ARM920T core\n");
         exit(2);
     }
-    s->cpu = s3c24xx_init(S3C_CPU_2440, 12000000 /* 12 mhz */, s->ram, S3C_SRAM_BASE_NANDBOOT, s->mmc);
+
+    if (s->boot_mode == BOOT_NOR)
+	    sram_base = S3C_SRAM_BASE_NORBOOT;
+    else
+	    sram_base = S3C_SRAM_BASE_NANDBOOT;
+
+    s->cpu = s3c24xx_init(S3C_CPU_2440, 12000000 /* 12 mhz */, s->ram, sram_base, s->mmc);
 
     /* Setup peripherals */
     mini2440_gpio_setup(s);
@@ -353,6 +370,7 @@ static struct mini2440_board_s *mini2440_init_common(int ram_size,
     return s;
 }
 
+#define FLASH_NOR_SIZE (2*1024*1024)
 
 static void mini2440_init(ram_addr_t ram_size,
         const char *boot_device,
@@ -361,17 +379,50 @@ static void mini2440_init(ram_addr_t ram_size,
         const char *initrd_filename,
         const char *cpu_model)
 {
-    struct mini2440_board_s *mini;
+    struct mini2440_board_s *mini = (struct mini2440_board_s *)
+            qemu_mallocz(sizeof(struct mini2440_board_s));
     int sd_idx = drive_get_index(IF_SD, 0, 0);
+    int nor_idx = drive_get_index(IF_PFLASH, 0, 0);
+    int nand_idx = drive_get_index(IF_MTD, 0, 0);
     SDState *sd = 0;
+    ram_addr_t phys_flash;
 
+    /* Check the boot mode */
+    if (nand_idx == 0)
+	    mini->boot_mode = BOOT_NAND;
+    if (nor_idx == 0)
+	    mini->boot_mode = BOOT_NOR;
+
+    printf("Boot mode: %s\n", mini->boot_mode == BOOT_NOR ? "NOR": "NAND");
+
+    /* Flash NOR init */
+    if (mini->boot_mode == BOOT_NOR) {
+
+	    int nor_size = bdrv_getlength(drives_table[nor_idx].bdrv);
+	    if (nor_size > FLASH_NOR_SIZE)
+		    printf("file too big (2MBytes)\n");
+	    printf("Register parallel flash %d size 0x%x '%s'\n",
+			    nor_idx, nor_size,
+			    bdrv_get_device_name(drives_table[nor_idx].bdrv));
+
+
+
+	    phys_flash = qemu_ram_alloc(FLASH_NOR_SIZE);
+	    pflash_cfi02_register(0, phys_flash,
+			    nor_idx != -1 ? drives_table[nor_idx].bdrv : NULL, (64 * 1024),
+			    FLASH_NOR_SIZE >> 16,
+			    1, 2, 0x0000, 0x0000, 0x0000, 0x0000,
+			    0x555, 0x2aa);
+    }
+
+    /* SD init */
     if (sd_idx >= 0)
         sd = sd_init(drives_table[sd_idx].bdrv, 0);
 
-    mini = mini2440_init_common(ram_size,
+    mini = mini2440_init_common(mini, ram_size,
                     kernel_filename, cpu_model, sd);
 
-	mini->nand = nand_init(NAND_MFR_SAMSUNG, 0x76);
+    mini->nand = nand_init(NAND_MFR_SAMSUNG, 0x76);
     mini->cpu->nand->reg(mini->cpu->nand, mini->nand);
 
     mini2440_reset(mini);
