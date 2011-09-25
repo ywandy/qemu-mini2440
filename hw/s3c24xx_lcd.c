@@ -12,6 +12,7 @@
 #include "hw.h"
 #include "console.h"
 #include "framebuffer.h"
+#include "sysemu.h"
 
 
 struct s3c_lcd_state_s {
@@ -262,8 +263,12 @@ static inline void s3c_lcd_resize(struct s3c_lcd_state_s *s)
     if (s->width != new_width || s->height != new_height) {
         s->width = new_width;
         s->height = new_height;
-       // dpy_resize(s->ds, s->width, s->height);
-        qemu_console_resize(s->ds, s->width, s->height);
+
+	if (graphic_rotate) {
+		qemu_console_resize(s->ds, s->height, s->width);
+	} else {
+		qemu_console_resize(s->ds, s->width, s->height);
+	}
         s->invalidate = 1;
     }
 }
@@ -394,9 +399,10 @@ static void s3c_lcd_palette_load(struct s3c_lcd_state_s *s)
 static void s3c_update_display(void *opaque)
 {
     struct s3c_lcd_state_s *s = (struct s3c_lcd_state_s *) opaque;
-    int src_width, dest_width;
+    int src_width;
     ram_addr_t  addr;
     int first, last;
+    int dest_row_pitch, dest_col_pitch;
 
     s3c_lcd_resize(s);
 
@@ -407,13 +413,19 @@ static void s3c_update_display(void *opaque)
 
     addr = s->saddr[0]<<1;
 
+    if (graphic_rotate) {
+	    dest_row_pitch = s->dest_width;
+	    dest_col_pitch = -s->height * s->dest_width;
+    } else {
+	    dest_row_pitch = s->width * s->dest_width;
+	    dest_col_pitch = s->dest_width;
+    }
     src_width = s->src_width;
-    dest_width = s->width * s->dest_width;
 
     first = 0;
     framebuffer_update_display(s->ds,
                                addr, s->width, s->height,
-                               src_width, dest_width, s->dest_width,
+                               src_width, dest_row_pitch, dest_col_pitch,
                                s->invalidate,
                                s->fn, s->palette,
                                &first, &last);
@@ -421,7 +433,10 @@ static void s3c_update_display(void *opaque)
     s->srcpnd |= (1 << 1);			/* INT_FrSyn */
     s3c_lcd_update(s);
     if (first >= 0) {
-        dpy_update(s->ds, 0, first, s->width, last - first + 1);
+        if (graphic_rotate)
+		dpy_update(s->ds, first, 0, last - first + 1, s->width);
+        else
+		dpy_update(s->ds, 0, first, s->width, last - first + 1);
     }
     s->invalidate = 0;
 }
