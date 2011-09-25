@@ -31,9 +31,10 @@
 #define FN_4(x)		FN_2(x + 2) FN_2(x)
 #define FN_8(x)		FN_4(x + 4) FN_4(x)
 
-static void glue(s3c_draw_line1_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line1_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
@@ -55,9 +56,10 @@ static void glue(s3c_draw_line1_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line2_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line2_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
@@ -79,9 +81,10 @@ static void glue(s3c_draw_line2_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line4_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line4_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
@@ -103,9 +106,10 @@ static void glue(s3c_draw_line4_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line8_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line8_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
@@ -127,7 +131,7 @@ static void glue(s3c_draw_line8_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line16a_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line16a_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -155,7 +159,7 @@ static void glue(s3c_draw_line16a_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line16b_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line16b_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -183,7 +187,7 @@ static void glue(s3c_draw_line16b_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line12_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line12_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -220,7 +224,7 @@ static void glue(s3c_draw_line12_, BITS)(uint32_t *palette,
     }
 }
 
-static void glue(s3c_draw_line24_, BITS)(uint32_t *palette,
+static void glue(s3c_draw_line24_, BITS)(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -241,7 +245,7 @@ static void glue(s3c_draw_line24_, BITS)(uint32_t *palette,
     }
 }
 
-static s3c_drawfn_t glue(s3c_draw_fn_, BITS)[] =
+static drawfn glue(s3c_draw_fn_, BITS)[] =
 {
     glue(s3c_draw_line1_, BITS),
     glue(s3c_draw_line2_, BITS),

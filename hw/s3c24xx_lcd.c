@@ -11,14 +11,14 @@
 #include "s3c.h"
 #include "hw.h"
 #include "console.h"
+#include "framebuffer.h"
 
-typedef void (*s3c_drawfn_t)(uint32_t *, uint8_t *, const uint8_t *, int, int);
 
 struct s3c_lcd_state_s {
     target_phys_addr_t base;
     void *irq;
     DisplayState *ds;
-    s3c_drawfn_t *line_fn;
+    drawfn *line_fn;
 
     uint32_t con[5];
     uint32_t saddr[3];
@@ -40,13 +40,12 @@ struct s3c_lcd_state_s {
     int enable;
     int msb;
     int frm565;
-    void *fb;
     uint32_t palette[0x100];
     int invalidate;
     int invalidatep;
     int src_width;
     int dest_width;
-    s3c_drawfn_t fn;
+    drawfn fn;
 };
 
 static void s3c_lcd_update(struct s3c_lcd_state_s *s)
@@ -186,10 +185,6 @@ static void s3c_lcd_write(void *opaque, target_phys_addr_t addr,
         break;
     case S3C_LCDSADDR1:
         s->saddr[0] = value;
-/*        s->fb = phys_ram_base +
-                (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE); */
-        s->fb = qemu_get_ram_ptr(
-                (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE));
         s->invalidate = 1;
         break;
     case S3C_LCDSADDR2:
@@ -399,11 +394,9 @@ static void s3c_lcd_palette_load(struct s3c_lcd_state_s *s)
 static void s3c_update_display(void *opaque)
 {
     struct s3c_lcd_state_s *s = (struct s3c_lcd_state_s *) opaque;
-    int y, src_width, dest_width, dirty[2], miny, maxy;
-    ram_addr_t x, addr, new_addr, start, end;
-    uint8_t *src, *dest;
-    if (!s->enable || !s->dest_width)
-        return;
+    int src_width, dest_width;
+    ram_addr_t  addr;
+    int first, last;
 
     s3c_lcd_resize(s);
 
@@ -412,47 +405,25 @@ static void s3c_update_display(void *opaque)
         s->invalidatep = 0;
     }
 
-    src = s->fb;
-    src_width = s->src_width;
+    addr = s->saddr[0]<<1;
 
-    dest = ds_get_data(s->ds);
+    src_width = s->src_width;
     dest_width = s->width * s->dest_width;
 
-/*    addr = (ram_addr_t) (s->fb - (void *) phys_ram_base); */
-    addr = qemu_ram_addr_from_host(s->fb);
-    start = addr + s->height * src_width;
-    end = addr;
-    dirty[0] = dirty[1] = cpu_physical_memory_get_dirty(start, VGA_DIRTY_FLAG);
-    miny = s->height;
-    maxy = 0;
-    for (y = 0; y < s->height; y ++) {
-        new_addr = addr + src_width;
-        for (x = addr + TARGET_PAGE_SIZE; x < new_addr;
-                        x += TARGET_PAGE_SIZE) {
-            dirty[1] = cpu_physical_memory_get_dirty(x, VGA_DIRTY_FLAG);
-            dirty[0] |= dirty[1];
-        }
-        if (dirty[0] || s->invalidate) {
-            s->fn(s->palette, dest, src, s->width, s->dest_width);
-            maxy = y;
-            end = new_addr;
-            if (y < miny) {
-                miny = y;
-                start = addr;
-            }
-        }
-        addr = new_addr;
-        dirty[0] = dirty[1];
-        src += src_width;
-        dest += dest_width;
-    }
+    first = 0;
+    framebuffer_update_display(s->ds,
+                               addr, s->width, s->height,
+                               src_width, dest_width, s->dest_width,
+                               s->invalidate,
+                               s->fn, s->palette,
+                               &first, &last);
 
-    s->invalidate = 0;
-    if (end > start)
-        cpu_physical_memory_reset_dirty(start, end, VGA_DIRTY_FLAG);
     s->srcpnd |= (1 << 1);			/* INT_FrSyn */
     s3c_lcd_update(s);
-    dpy_update(s->ds, 0, miny, s->width, maxy);
+    if (first >= 0) {
+        dpy_update(s->ds, 0, first, s->width, last - first + 1);
+    }
+    s->invalidate = 0;
 }
 
 static void s3c_invalidate_display(void *opaque)
@@ -524,8 +495,6 @@ static int s3c_lcd_load(QEMUFile *f, void *opaque, int version_id)
     s->enable = s->con[0] & 1;
     s->msb = (s->con[4] >> 12) & 1;
     s->frm565 = (s->con[4] >> 11) & 1;
-/*    s->fb = phys_ram_base + (((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE); */
-    s->fb = qemu_get_ram_ptr((((s->saddr[0] << 1) & 0x7ffffffe) - S3C_RAM_BASE));
 
     for (i = 0; i < 0x100; i ++)
         qemu_get_be16s(f, &s->raw_pal[i]);
