@@ -1,6 +1,6 @@
 include config.mak
 include $(SRC_PATH)/rules.mak
-
+LIBS+=-lz -lrt -lm
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
@@ -494,7 +494,7 @@ ifdef CONFIG_KVM
 OBJS+=kvm.o kvm-all.o
 endif
 
-LIBS+=-lz
+LIBS+=-lz -lrt -lm
 ifdef CONFIG_ALSA
 LIBS += -lasound
 endif

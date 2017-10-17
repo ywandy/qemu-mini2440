@@ -1,5 +1,5 @@
 # Makefile for QEMU.
-
+LIBS+=-lz -lrt -lm
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
 all: build-all
@@ -231,7 +231,7 @@ qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
 
 qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(BLOCK_OBJS)
 
-qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
+qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz -lrt -lm
 
 clean:
 # avoid old build problems by removing potentially incorrect old files

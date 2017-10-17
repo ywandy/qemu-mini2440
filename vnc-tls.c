@@ -285,10 +285,11 @@ int vnc_tls_validate_certificate(struct VncState *vs)
 
 int vnc_tls_client_setup(struct VncState *vs,
                          int needX509Creds) {
-    static const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
-    static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
-    static const int kx_anon[] = {GNUTLS_KX_ANON_DH, 0};
-    static const int kx_x509[] = {GNUTLS_KX_DHE_DSS, GNUTLS_KX_RSA, GNUTLS_KX_DHE_RSA, GNUTLS_KX_SRP, 0};
+    //static const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
+    //static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
+    //static const int kx_anon[] = {GNUTLS_KX_ANON_DH, 0};
+    //static const int kx_x509[] = {GNUTLS_KX_DHE_DSS, GNUTLS_KX_RSA, GNUTLS_KX_DHE_RSA, 
+//GNUTLS_KX_SRP, 0};
 
     VNC_DEBUG("Do TLS setup\n");
     if (vnc_tls_initialize() < 0) {
@@ -309,21 +310,23 @@ int vnc_tls_client_setup(struct VncState *vs,
             return -1;
         }
 
-        if (gnutls_kx_set_priority(vs->tls.session, needX509Creds ? kx_x509 : kx_anon) < 0) {
-            gnutls_deinit(vs->tls.session);
-            vs->tls.session = NULL;
-            vnc_client_error(vs);
-            return -1;
-        }
+       // if (gnutls_kx_set_priority(vs->tls.session, needX509Creds ? kx_x509 : kx_anon) < 0) {
+       //     gnutls_deinit(vs->tls.session);
+       //     vs->tls.session = NULL;
+       //     vnc_client_error(vs);
+       //     return -1;
+       // }
 
-        if (gnutls_certificate_type_set_priority(vs->tls.session, cert_type_priority) < 0) {
-            gnutls_deinit(vs->tls.session);
-            vs->tls.session = NULL;
-            vnc_client_error(vs);
-            return -1;
-        }
+        //if (gnutls_certificate_type_set_priority(vs->tls.session, cert_type_priority) < 0) {
+        //    gnutls_deinit(vs->tls.session);
+        //    vs->tls.session = NULL;
+        //    vnc_client_error(vs);
+        //    return -1;
+       // }
 
-        if (gnutls_protocol_set_priority(vs->tls.session, protocol_priority) < 0) {
+        //if (gnutls_protocol_set_priority(vs->tls.session, protocol_priority) < 0) {
+	   if (gnutls_priority_set_direct(vs->tls.session, needX509Creds ? 
+"NORMAL" : "NORMAL:+ANON-DH", NULL) < 0) {
             gnutls_deinit(vs->tls.session);
             vs->tls.session = NULL;
             vnc_client_error(vs);
